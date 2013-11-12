@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -262,7 +262,11 @@ public class AtmosphericSoundEnhancement : MonoBehaviour
 
     private float SpeedOfSound(Vessel vessel)
     {
-        float temperature = vessel.flightIntegrator.getExternalTemperature();
-        return (float)(331.3 + 0.606 * temperature); // Fast approximation.
+        float tempKelvin = vessel.flightIntegrator.getExternalTemperature() + 273.15f;
+        // Assuming:
+        // Adiabatic constant γ = 1.4
+        // Universal gas constant R = 287 J/kg oK
+        // TODO: This should change in atmospheres like Jool's.
+        return (float)Math.Sqrt(tempKelvin * 401.8f);
     }
 }
