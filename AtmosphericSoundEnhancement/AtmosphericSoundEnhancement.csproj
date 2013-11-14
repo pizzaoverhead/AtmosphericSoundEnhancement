@@ -72,6 +72,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ASEAtmoDataProvider.cs" />
+    <Compile Include="ASEFilterPanel.cs" />
     <Compile Include="AtmosphericSoundEnhancement.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
