@@ -1,0 +1,9 @@
+mcs \
+-langversion:4 \
+-r:Assembly-CSharp.dll \
+-r:Assembly-CSharp-firstpass.dll \
+-r:UnityEngine.dll \
+-r:mscorlib.dll \
+-t:library \
+*.cs \
+-out:AtmosphericSoundEnhancement.dll
