@@ -275,8 +275,8 @@ namespace ASE
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb
-                , (outbound - cameraAngle) / outWidthDeg * maxDistortion * shockwaveEffectStrength
+                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, 
+                    (outbound - cameraAngle) / outWidthDeg * maxDistortion * shockwaveEffectStrength
                 );
                 AtmosphericAttenuation(aPanel);
             }
@@ -294,8 +294,8 @@ namespace ASE
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion
-                , (cameraAngle - inbound) / shockwaveWidthDeg * maxDistortion * shockwaveEffectStrength
+                aPanel.SetKnobs(Knobs.distortion,
+                    (cameraAngle - inbound) / shockwaveWidthDeg * maxDistortion * shockwaveEffectStrength
                 );
                 aPanel.SetKnobs(Knobs.reverb, 0.15f);//testing light reverb
                 AtmosphericAttenuation(aPanel);
@@ -378,7 +378,7 @@ namespace ASE
 
         private void UpdateAeroFX()
         {
-            if (machNumber < 0.8)
+            if (machNumber < lowerThreshold)
             {
                 // Subsonic.
                 aeroFX.fudge1 = 0; // Disable.
@@ -386,24 +386,25 @@ namespace ASE
             else if (machNumber >= lowerThreshold && machNumber <= upperThreshold)
             {
                 // Transonic.
-                aeroFX.fudge1 = 3 + ((machNumber - lowerThreshold) / (upperThreshold - lowerThreshold)) * condensationEffectStrength;
+                aeroFX.airspeed = 600; // Lock speed within the range that it occurs so we can control it.
+                aeroFX.fudge1 = 3 + (1 - Mathf.Abs((machNumber - 1) / (1 - lowerThreshold))) * condensationEffectStrength;
                 aeroFX.state = 0; // Condensation.
             }
-            else if (machNumber > 1 && machNumber < 5)
+            else if (machNumber > upperThreshold && machNumber < 3)
             {
                 // Supersonic.
                 aeroFX.fudge1 = 0;
             }
-            else if (machNumber >= 5 && machNumber < 25)
+            else if (machNumber >= 3 && machNumber < 25)
             {
                 // Hypersonic.
-                aeroFX.fudge1 = 3 + ((machNumber - 5) / (25 - 5)) * plasmaEffectStrength;
+                aeroFX.fudge1 = 3; // + ((machNumber - 5) / (25 - 5)) * plasmaEffectStrength;
                 aeroFX.state = 1; // Plasma.
             }
             else if (machNumber >= 25)
             {
                 // Re-entry.
-                aeroFX.fudge1 = 3 + plasmaEffectStrength;
+                aeroFX.fudge1 = 3; // + plasmaEffectStrength;
                 aeroFX.state = 1;
             }
         }
