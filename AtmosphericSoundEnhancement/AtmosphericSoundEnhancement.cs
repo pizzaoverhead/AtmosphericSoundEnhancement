@@ -224,10 +224,10 @@ namespace ASE
 
         private void Vacuum()
         {
-            currentState = Soundscape.SparseAtmosphere;
+            currentState = Soundscape.Vacuum;
             if (currentState != lastState)
             {
-                Debug.Log("ASE -- Switching to Sparse Atm");
+                Debug.Log("ASE -- Switching to Vacuum");
                 foreach (ASEFilterPanel aPanel in audioPanels)
                     aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.distortion | Knobs.reverb, -1);//silence
             }
@@ -333,9 +333,6 @@ namespace ASE
 
         private void AtmosphericAttenuation(ASEFilterPanel asePanel)
         {
-            currentState = Soundscape.SparseAtmosphere;
-            if (currentState != lastState)
-                Debug.Log("ASE -- Switching to Falling Edge");
             if (density <= MinFullSpectrumDensity)
                 asePanel.SetKnobs(Knobs.lowpass, (float)density * MaxFreqCoef);
         }
