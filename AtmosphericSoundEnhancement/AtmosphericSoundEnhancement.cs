@@ -39,8 +39,11 @@ namespace ASE
 
         PluginConfiguration config;
 
+        AerodynamicsFX aeroFX;
+
         float density;//realtime atmosphere density
-        float lowerThreshold;//lower end to mach effects
+        float lowerThreshold;//lower end to mach audio and graphical effects
+        float upperThreshold;//upper end to mach graphical effects
         float machNumber;//http://www.grc.nasa.gov/WWW/K-12/airplane/mach.html
         float machAngle;//http://www.grc.nasa.gov/WWW/K-12/airplane/machang.html
         float cameraAngle;
@@ -51,15 +54,20 @@ namespace ASE
         float interiorVolume;
         float maxShipVolume;
         float volume;//realtime, dynamic
+        float plasmaEffectStrength;
+        float condensationEffectStrength;
 
         public void Awake()
         {
             // Configurable.
             lowerThreshold = 0.80f;
+            upperThreshold = 1.20f;
             shockwaveWidthDeg = 24f;
             maxDistortion = 0.95f;
             interiorVolumeScale = 0.7f;
-
+            plasmaEffectStrength = 1f;
+            condensationEffectStrength = 0.7f;
+            
             // TODO:
             // Option for microphone fixed to craft.
             // Options for shockwave reverb/distortion levels.
@@ -81,11 +89,7 @@ namespace ASE
             maxShipVolume = GameSettings.SHIP_VOLUME;
             volume = GameSettings.SHIP_VOLUME;
 
-
-            /*cameraIsMicrophone = config.GetValue<bool>("Camera is microphone", true);
-            soundInSpace = config.GetValue<bool>("Sound in space", false);
-            muffledIvaSounds = config.GetValue<bool>("Muffled IVA sounds", true);
-            muffledIvaMaxFreq = config.GetValue<float>("Max IVA frequency Hz", 600);*/
+            GetAeroFX();
         }
 
         public void Start()
@@ -170,6 +174,8 @@ namespace ASE
                         NormalFlight();
                 } //end dense atmospheric conditions
             }//end external view
+
+            UpdateAeroFX();
         }
 
         #region Persistence
@@ -360,5 +366,46 @@ namespace ASE
             }
         }
         #endregion Audio updates
+
+        private void GetAeroFX()
+        {
+            GameObject fxLogicObject = GameObject.Find("FXLogic");
+            if (fxLogicObject != null)
+            {
+                aeroFX = fxLogicObject.GetComponent<AerodynamicsFX>();
+            }
+        }
+
+        private void UpdateAeroFX()
+        {
+            if (machNumber < 0.8)
+            {
+                // Subsonic.
+                aeroFX.fudge1 = 0; // Disable.
+            }
+            else if (machNumber >= lowerThreshold && machNumber <= upperThreshold)
+            {
+                // Transonic.
+                aeroFX.fudge1 = 3 + ((machNumber - lowerThreshold) / (upperThreshold - lowerThreshold)) * condensationEffectStrength;
+                aeroFX.state = 0; // Condensation.
+            }
+            else if (machNumber > 1 && machNumber < 5)
+            {
+                // Supersonic.
+                aeroFX.fudge1 = 0;
+            }
+            else if (machNumber >= 5 && machNumber < 25)
+            {
+                // Hypersonic.
+                aeroFX.fudge1 = 3 + ((machNumber - 5) / (25 - 5)) * plasmaEffectStrength;
+                aeroFX.state = 1; // Plasma.
+            }
+            else if (machNumber >= 25)
+            {
+                // Re-entry.
+                aeroFX.fudge1 = 3 + plasmaEffectStrength;
+                aeroFX.state = 1;
+            }
+        }
     }//end class
 }//namespace
