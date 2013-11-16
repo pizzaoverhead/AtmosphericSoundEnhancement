@@ -1,0 +1,102 @@
+<html>
+<head>
+<script src="jquery-1.10.2.min.js"></script>
+<script src="jquery-ui-1.10.3.custom.min.js"></script>
+<link rel="stylesheet" href="jquery-ui-1.10.3.custom.min.css" />
+<script type="text/javascript" charset="utf-8">
+$(function() {
+    $("#slider").slider({
+        range: "max",
+        min: 0,
+        max: 25,
+        value: 0.75,
+        step: 0.01,
+        slide: function(event, ui) {
+            $("#mNumber").val(ui.value);
+            machNumber = ui.value;
+            mathy();
+    $("#mAngle").val(machAngle);
+    $("#sEffect").val(shockwaveEffectStrength);
+    $("#sWidth").val(shockwaveWidthDeg);
+    $("#tEdge").val(trailingEdge);
+    $("#lEdge").val(leadingEdge);
+    $("#oWidth").val(outWidthDeg);
+        }
+    });
+    $("#mNumber").val( $("#slider").slider("value") );
+    var lowerThreshold = 0.8;
+    var machNumber = 0;
+    var machAngle = 0;
+    var cameraAngle = 0;
+    var shockwaveEffectStrength = 1;
+    var shockwaveWidthDeg = 0;
+    var trailingEdge = 0;
+    var outWidthDeg = 0;
+    var leadingEdge = 0;
+    var canvas = document.getElementById('myCanvas');
+    var context = canvas.getContext('2d');
+    var x = canvas.width / 2;
+    var y = canvas.height / 2;
+    var radius = 100;
+    var startAngle = (machAngle * (Math.PI / 180)) / (2 * Math.PI);
+    var endAngle = (machAngle * (Math.PI / 180)) / (2 * Math.PI);
+    var ccw = false;
+
+    function mathy()
+    {
+        if (machNumber >= lowerThreshold)
+        {
+            machAngle = 90;
+            if (machNumber >= 1)
+                machAngle = 180/Math.PI * Math.asin(1 / machNumber);
+            else
+                shockwaveEffectStrength = (machNumber - lowerThreshold) / (1 - lowerThreshold);
+            
+            shockwaveWidthDeg = 5 + (15 / machNumber);
+            trailingEdge = machAngle - shockwaveWidthDeg;
+            outWidthDeg = shockwaveWidthDeg * (1 - shockwaveEffectStrength);
+            leadingEdge = machAngle + outWidthDeg;
+        }
+        context.clearRect(0,0,canvas.width,canvas.height);
+        draw(leadingEdge, "#c93e5c");
+        draw(machAngle, "#00a1c3");
+        draw(trailingEdge, "#793ec9");
+        draw(leadingEdge -(2*leadingEdge), "#c93e5c");
+        draw(machAngle -(2*machAngle), "#00a1c3");
+        draw(trailingEdge -(2*trailingEdge), "#793ec9");
+    }
+
+    function draw(angle, colour)
+    {
+        startAngle = (angle * (Math.PI / 180));
+        endAngle = (angle * (Math.PI / 180));
+        ccw = false;
+
+        context.beginPath();
+        context.moveTo(x, y);
+        context.arc(x, y, radius, startAngle, endAngle, ccw);
+        context.lineTo(x, y)
+        context.lineWidth = 4;
+
+        // line color
+        context.strokeStyle = colour;
+        context.stroke();
+    }
+});
+</script>
+</head>
+
+<body>
+<div id="slider"></div>
+<ul>
+    <li><label for="mNumber">machNumber:</label><input type="text" id="mNumber" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
+    <li><label for="mAngle">machAngle:</label><input type="text" id="mAngle" style="border: 0; color: #00a1c3; font-weight: bold;" /></li>
+    <li><label for="sEffect">shockwaveEffectStrength:</label><input type="text" id="sEffect" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
+    <li><label for="sWidth">shockwaveWidthDeg:</label><input type="text" id="sWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
+    <li><label for="tEdge">trailingEdge:</label><input type="text" id="tEdge" style="border: 0; color: #793ec9; font-weight: bold;" /></li>
+    <li><label for="lEdge">leadingEdge:</label><input type="text" id="lEdge" style="border: 0; color: #c93e5c; font-weight: bold;" /></li>
+    <li><label for="oWidth">outWidthDeg:</label><input type="text" id="oWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
+</ul>
+<canvas id="myCanvas" width="250" height="250"></canvas>
+</body>
+</html>
