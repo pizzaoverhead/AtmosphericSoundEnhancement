@@ -14,7 +14,7 @@ $(function() {
         slide: function(event, ui) {
             $("#mNumber").val(ui.value);
             machNumber = ui.value;
-            mathy();
+            transonic();
     $("#mAngle").val(machAngle);
     $("#sEffect").val(shockwaveEffectStrength);
     $("#sWidth").val(shockwaveWidthDeg);
@@ -42,7 +42,7 @@ $(function() {
     var endAngle = (machAngle * (Math.PI / 180)) / (2 * Math.PI);
     var ccw = false;
 
-    function mathy()
+    function transonic()
     {
         if (machNumber >= lowerThreshold)
         {
@@ -97,6 +97,13 @@ $(function() {
     <li><label for="lEdge">leadingEdge:</label><input type="text" id="lEdge" style="border: 0; color: #c93e5c; font-weight: bold;" /></li>
     <li><label for="oWidth">outWidthDeg:</label><input type="text" id="oWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
 </ul>
-<canvas id="myCanvas" width="250" height="250"></canvas>
+<div><canvas id="myCanvas" width="250" height="250"></canvas></div>
+<div>
+<ul>
+    <li><span style="color:#00a1c3">machAngle</span></li>
+    <li><span style="color:#c93e5c">leadingEdge</span></li>
+    <li><span style="color:#793ec9">trailingEdge</span></li>
+</ul>
+</div>
 </body>
 </html>
