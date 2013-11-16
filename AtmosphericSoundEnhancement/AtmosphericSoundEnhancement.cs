@@ -25,8 +25,8 @@ namespace ASE
             Vacuum,
             NormalFlight,
             BeforeShockwave,
-            RisingEdge,
-            FallingEdge,
+            PositiveSlope,
+            NegativeSlope,
             AfterShockwave,
         }
         public Soundscape currentState;
@@ -144,24 +144,24 @@ namespace ASE
                             shockwaveEffectStrength = (machNumber - lowerThreshold) / (1f - lowerThreshold);
 
                         shockwaveWidthDeg = 5f + (15f / machNumber);
-                        float inbound = machAngle - shockwaveWidthDeg;
+                        float trailingEdge = machAngle - shockwaveWidthDeg;
                         float outWidthDeg = shockwaveWidthDeg * (1f - shockwaveEffectStrength);
-                        float outbound = machAngle + outWidthDeg;
+                        float leadingEdge = machAngle + outWidthDeg;
                         cameraAngle = Vector3.Angle
                             (FlightGlobals.ActiveVessel.GetSrfVelocity().normalized
                             , (FlightGlobals.ActiveVessel.transform.position - FlightCamera.fetch.transform.position).normalized
                             );
 
-                        if (cameraAngle >= inbound && cameraAngle <= outbound)//at shockwave
+                        if (cameraAngle >= trailingEdge && cameraAngle <= leadingEdge)//at shockwave
                             if (cameraAngle > machAngle)
-                                RisingEdge(outbound, outWidthDeg);
+                                PositiveSlope(leadingEdge, outWidthDeg);
                             else
-                                FallingEdge(inbound);
+                                NegativeSlope(trailingEdge);
                         else
                         {
-                            if (cameraAngle > outbound)
+                            if (cameraAngle > leadingEdge)
                                 BeforeShockwave();
-                            else if (cameraAngle < inbound)
+                            else if (cameraAngle < trailingEdge)
                                 AfterShockwave();
                         }
 
@@ -257,12 +257,12 @@ namespace ASE
         /// <summary>
         /// The leading edge of the shock cone: The first air the craft meets.
         /// </summary>
-        /// <param name="outbound"></param>
+        /// <param name="leadingEdge"></param>
         /// <param name="outWidthDeg"></param>
-        private void RisingEdge(float outbound, float outWidthDeg)
+        private void PositiveSlope(float leadingEdge, float outWidthDeg)
         {
-            currentState = Soundscape.RisingEdge;
-            volume *= Mathf.Lerp((1f - shockwaveEffectStrength), 1f, (outbound - cameraAngle) / outWidthDeg);
+            currentState = Soundscape.PositiveSlope;
+            volume *= Mathf.Lerp((1f - shockwaveEffectStrength), 1f, (leadingEdge - cameraAngle) / outWidthDeg);
 
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Rising Edge");
@@ -270,7 +270,7 @@ namespace ASE
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
                 aPanel.SetKnobs(Knobs.distortion | Knobs.reverb
-                , (outbound - cameraAngle) / outWidthDeg * maxDistortion * shockwaveEffectStrength
+                , (leadingEdge - cameraAngle) / outWidthDeg * maxDistortion * shockwaveEffectStrength
                 );
                 AtmosphericAttenuation(aPanel);
             }
@@ -279,17 +279,17 @@ namespace ASE
         /// <summary>
         /// The trailing edge of the shock cone, behind the shock wave.
         /// </summary>
-        /// <param name="inbound"></param>
-        private void FallingEdge(float inbound)
+        /// <param name="trailingEdge"></param>
+        private void NegativeSlope(float trailingEdge)
         {
-            currentState = Soundscape.FallingEdge;
+            currentState = Soundscape.NegativeSlope;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Falling Edge");
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
                 aPanel.SetKnobs(Knobs.distortion
-                , (cameraAngle - inbound) / shockwaveWidthDeg * maxDistortion * shockwaveEffectStrength
+                , (cameraAngle - trailingEdge) / shockwaveWidthDeg * maxDistortion * shockwaveEffectStrength
                 );
                 aPanel.SetKnobs(Knobs.reverb, 0.15f);//testing light reverb
                 AtmosphericAttenuation(aPanel);
