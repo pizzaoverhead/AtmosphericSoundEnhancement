@@ -23,13 +23,11 @@ namespace ASE
             Paused,
             Interior,
             Vacuum,
-            SparseAtmosphere,
-            DenseAtmosphere,
+            NormalFlight,
             BeforeShockwave,
             RisingEdge,
             FallingEdge,
             AfterShockwave,
-            Hypersonic
         }
         public Soundscape currentState;
         public Soundscape lastState;
@@ -235,10 +233,6 @@ namespace ASE
 
         private void Hypersonic()
         {
-            currentState = Soundscape.Hypersonic;
-            if (currentState != lastState)
-                Debug.Log("ASE -- Switching to Hypersonic");
-
             // Fade-in re-entry effects from Mach 10 to full at Mach 25.
             // OR: Use same calculations as Deadly Reentry.
         }
@@ -320,7 +314,7 @@ namespace ASE
 
         private void NormalFlight()
         {
-            currentState = Soundscape.DenseAtmosphere;
+            currentState = Soundscape.NormalFlight;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Normal Atm Flight");
             foreach (ASEFilterPanel aPanel in audioPanels)
