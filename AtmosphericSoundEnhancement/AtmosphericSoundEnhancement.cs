@@ -23,13 +23,11 @@ namespace ASE
             Paused,
             Interior,
             Vacuum,
-            SparseAtmosphere,
             DenseAtmosphere,
             BeforeShockwave,
             RisingEdge,
             FallingEdge,
             AfterShockwave,
-            Hypersonic
         }
         public Soundscape currentState;
         public Soundscape lastState;
@@ -66,7 +64,7 @@ namespace ASE
             maxDistortion = 0.95f;
             interiorVolumeScale = 0.7f;
             plasmaEffectStrength = 1f;
-            condensationEffectStrength = 0.7f;
+            condensationEffectStrength = 0.5f;
             
             // TODO:
             // Option for microphone fixed to craft.
@@ -141,14 +139,17 @@ namespace ASE
                     {
                         machAngle = 90f;
                         if (machNumber >= 1f)
+                        {
                             machAngle = Mathf.Rad2Deg * (float)Math.Asin(1f / machNumber);
+                            shockwaveEffectStrength = 1f;
+                        }
                         else
                             shockwaveEffectStrength = (machNumber - lowerThreshold) / (1f - lowerThreshold);
 
                         shockwaveWidthDeg = 5f + (15f / machNumber);
                         float inbound = machAngle - shockwaveWidthDeg;
                         float outWidthDeg = shockwaveWidthDeg * (1f - shockwaveEffectStrength);
-                        float outbound = machAngle + outWidthDeg;
+                        float outbound = Mathf.Max(0f, machAngle + outWidthDeg);
                         cameraAngle = Vector3.Angle
                             (FlightGlobals.ActiveVessel.GetSrfVelocity().normalized
                             , (FlightGlobals.ActiveVessel.transform.position - FlightCamera.fetch.transform.position).normalized
@@ -166,9 +167,6 @@ namespace ASE
                             else if (cameraAngle < inbound)
                                 AfterShockwave();
                         }
-
-                        if (machNumber > 5)
-                            Hypersonic();
                     }
                     else
                         NormalFlight();
@@ -224,23 +222,13 @@ namespace ASE
 
         private void Vacuum()
         {
-            currentState = Soundscape.SparseAtmosphere;
+            currentState = Soundscape.Vacuum;
             if (currentState != lastState)
             {
-                Debug.Log("ASE -- Switching to Sparse Atm");
+                Debug.Log("ASE -- Switching to Vacuum");
                 foreach (ASEFilterPanel aPanel in audioPanels)
                     aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.distortion | Knobs.reverb, -1);//silence
             }
-        }
-
-        private void Hypersonic()
-        {
-            currentState = Soundscape.Hypersonic;
-            if (currentState != lastState)
-                Debug.Log("ASE -- Switching to Hypersonic");
-
-            // Fade-in re-entry effects from Mach 10 to full at Mach 25.
-            // OR: Use same calculations as Deadly Reentry.
         }
 
         /// <summary>
@@ -294,10 +282,10 @@ namespace ASE
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion,
+                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb,
                     (cameraAngle - inbound) / shockwaveWidthDeg * maxDistortion * shockwaveEffectStrength
                 );
-                aPanel.SetKnobs(Knobs.reverb, 0.15f);//testing light reverb
+                //aPanel.SetKnobs(Knobs.reverb, 0.15f);//testing light reverb
                 AtmosphericAttenuation(aPanel);
             }
         }
@@ -333,9 +321,6 @@ namespace ASE
 
         private void AtmosphericAttenuation(ASEFilterPanel asePanel)
         {
-            currentState = Soundscape.SparseAtmosphere;
-            if (currentState != lastState)
-                Debug.Log("ASE -- Switching to Falling Edge");
             if (density <= MinFullSpectrumDensity)
                 asePanel.SetKnobs(Knobs.lowpass, (float)density * MaxFreqCoef);
         }
@@ -355,8 +340,14 @@ namespace ASE
                 AudioSource[] audioSources = FindObjectsOfType(typeof(AudioSource)) as AudioSource[];
                 foreach (AudioSource s in audioSources)
                 {
-                    if (s.gameObject.GetComponent<Part>() != null)
+                    if (s.gameObject.GetComponent<Part>() != null && s.clip != null)
                         audioPanels.Add(new ASEFilterPanel(s.gameObject, s));
+                }
+
+                GetAeroFX();
+                if (aeroFX != null)
+                {
+                    audioPanels.Add(new ASEFilterPanel(aeroFX.airspeedNoise.gameObject, aeroFX.airspeedNoise));
                 }
 
                 //add relevant filters
@@ -378,34 +369,37 @@ namespace ASE
 
         private void UpdateAeroFX()
         {
-            if (machNumber < lowerThreshold)
+            if (aeroFX != null)
             {
-                // Subsonic.
-                aeroFX.fudge1 = 0; // Disable.
-            }
-            else if (machNumber >= lowerThreshold && machNumber <= upperThreshold)
-            {
-                // Transonic.
-                aeroFX.airspeed = 600; // Lock speed within the range that it occurs so we can control it.
-                aeroFX.fudge1 = 3 + (1 - Mathf.Abs((machNumber - 1) / (1 - lowerThreshold))) * condensationEffectStrength;
-                aeroFX.state = 0; // Condensation.
-            }
-            else if (machNumber > upperThreshold && machNumber < 3)
-            {
-                // Supersonic.
-                aeroFX.fudge1 = 0;
-            }
-            else if (machNumber >= 3 && machNumber < 25)
-            {
-                // Hypersonic.
-                aeroFX.fudge1 = 3; // + ((machNumber - 5) / (25 - 5)) * plasmaEffectStrength;
-                aeroFX.state = 1; // Plasma.
-            }
-            else if (machNumber >= 25)
-            {
-                // Re-entry.
-                aeroFX.fudge1 = 3; // + plasmaEffectStrength;
-                aeroFX.state = 1;
+                if (machNumber < lowerThreshold)
+                {
+                    // Subsonic.
+                    aeroFX.fudge1 = 0; // Disable.
+                }
+                else if (machNumber >= lowerThreshold && machNumber <= upperThreshold)
+                {
+                    // Transonic.
+                    aeroFX.airspeed = 400; // Lock speed within the range that it occurs so we can control it.
+                    aeroFX.fudge1 = 3 + (1 - Mathf.Abs((machNumber - 1) / (1 - lowerThreshold))) * condensationEffectStrength;
+                    aeroFX.state = 0; // Condensation.
+                }
+                else if (machNumber > upperThreshold && machNumber < 3)
+                {
+                    // Supersonic.
+                    aeroFX.fudge1 = 0;
+                }
+                else if (machNumber >= 3 && machNumber < 25)
+                {
+                    // Hypersonic.
+                    aeroFX.fudge1 = 3; // + ((machNumber - 5) / (25 - 5)) * plasmaEffectStrength;
+                    aeroFX.state = 1; // Plasma.
+                }
+                else if (machNumber >= 25)
+                {
+                    // Re-entry.
+                    aeroFX.fudge1 = 3; // + plasmaEffectStrength;
+                    aeroFX.state = 1;
+                }
             }
         }
     }//end class
