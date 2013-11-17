@@ -133,7 +133,7 @@ namespace ASE
                     Vacuum(); // No sounds.
                 else
                 {
-                    volume = maxShipVolume;
+                    //volume = maxShipVolume;
                     machNumber = AtmoDataProvider.Get().GetMach();
                     if (machNumber >= lowerThreshold)
                     {
@@ -282,6 +282,7 @@ namespace ASE
         /// <param name="trailingEdge"></param>
         private void NegativeSlope(float trailingEdge)
         {
+            volume = maxShipVolume;
             currentState = Soundscape.NegativeSlope;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Falling Edge");
@@ -301,6 +302,7 @@ namespace ASE
         /// </summary>
         private void AfterShockwave()
         {
+            volume = maxShipVolume;
             currentState = Soundscape.AfterShockwave;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to After Shock");
@@ -314,6 +316,7 @@ namespace ASE
 
         private void NormalFlight()
         {
+            volume = maxShipVolume;
             currentState = Soundscape.NormalFlight;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Normal Atm Flight");
