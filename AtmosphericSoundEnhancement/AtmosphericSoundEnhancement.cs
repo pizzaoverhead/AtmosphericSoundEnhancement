@@ -306,7 +306,8 @@ namespace ASE
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1f);
+                aPanel.SetKnobs(Knobs.distortion, -1f);
+                aPanel.SetKnobs(Knobs.reverb, 0.15f);
                 AtmosphericAttenuation(aPanel);
             }
         }
