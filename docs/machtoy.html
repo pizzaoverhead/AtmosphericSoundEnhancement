@@ -17,10 +17,10 @@ $(function() {
             transonic();
     $("#mAngle").val(machAngle);
     $("#sEffect").val(shockwaveEffectStrength);
-    $("#sWidth").val(shockwaveWidthDeg);
-    $("#tEdge").val(trailingEdge);
-    $("#lEdge").val(leadingEdge);
-    $("#oWidth").val(outWidthDeg);
+    $("#sWidth").val(negativeSlopeWidthDeg);
+    $("#tEdge").val(negativeSlopeEdgeDeg);
+    $("#lEdge").val(positiveSlopeEdgeDeg);
+    $("#oWidth").val(positiveSlopeWidthDeg);
         }
     });
     $("#mNumber").val( $("#slider").slider("value") );
@@ -29,10 +29,10 @@ $(function() {
     var machAngle = 0;
     var cameraAngle = 0;
     var shockwaveEffectStrength = 1;
-    var shockwaveWidthDeg = 0;
-    var trailingEdge = 0;
-    var outWidthDeg = 0;
-    var leadingEdge = 0;
+    var negativeSlopeWidthDeg = 0;
+    var negativeSlopeEdgeDeg = 0;
+    var positiveSlopeWidthDeg = 0;
+    var positiveSlopeEdgeDeg = 0;
     var canvas = document.getElementById('myCanvas');
     var context = canvas.getContext('2d');
     var x = canvas.width / 2;
@@ -52,18 +52,18 @@ $(function() {
             else
                 shockwaveEffectStrength = (machNumber - lowerThreshold) / (1 - lowerThreshold);
             
-            shockwaveWidthDeg = 5 + (15 / machNumber);
-            trailingEdge = machAngle - shockwaveWidthDeg;
-            outWidthDeg = shockwaveWidthDeg * (1 - shockwaveEffectStrength);
-            leadingEdge = machAngle + outWidthDeg;
+            negativeSlopeWidthDeg = 5 + (15 / machNumber);
+            negativeSlopeEdgeDeg = machAngle - negativeSlopeWidthDeg;
+            positiveSlopeWidthDeg = negativeSlopeWidthDeg * (1 - shockwaveEffectStrength);
+            positiveSlopeEdgeDeg = machAngle + positiveSlopeWidthDeg;
         }
         context.clearRect(0,0,canvas.width,canvas.height);
-        draw(leadingEdge, "#c93e5c");
+        draw(positiveSlopeEdgeDeg, "#c93e5c");
         draw(machAngle, "#00a1c3");
-        draw(trailingEdge, "#793ec9");
-        draw(leadingEdge -(2*leadingEdge), "#c93e5c");
+        draw(negativeSlopeEdgeDeg, "#793ec9");
+        draw(positiveSlopeEdgeDeg -(2*positiveSlopeEdgeDeg), "#c93e5c");
         draw(machAngle -(2*machAngle), "#00a1c3");
-        draw(trailingEdge -(2*trailingEdge), "#793ec9");
+        draw(negativeSlopeEdgeDeg -(2*negativeSlopeEdgeDeg), "#793ec9");
     }
 
     function draw(angle, colour)
@@ -92,17 +92,17 @@ $(function() {
     <li><label for="mNumber">machNumber:</label><input type="text" id="mNumber" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
     <li><label for="mAngle">machAngle:</label><input type="text" id="mAngle" style="border: 0; color: #00a1c3; font-weight: bold;" /></li>
     <li><label for="sEffect">shockwaveEffectStrength:</label><input type="text" id="sEffect" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
-    <li><label for="sWidth">shockwaveWidthDeg:</label><input type="text" id="sWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
-    <li><label for="tEdge">trailingEdge:</label><input type="text" id="tEdge" style="border: 0; color: #793ec9; font-weight: bold;" /></li>
-    <li><label for="lEdge">leadingEdge:</label><input type="text" id="lEdge" style="border: 0; color: #c93e5c; font-weight: bold;" /></li>
-    <li><label for="oWidth">outWidthDeg:</label><input type="text" id="oWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
+    <li><label for="sWidth">negativeSlopeWidthDeg:</label><input type="text" id="sWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
+    <li><label for="tEdge">negativeSlopeEdgeDeg:</label><input type="text" id="tEdge" style="border: 0; color: #793ec9; font-weight: bold;" /></li>
+    <li><label for="lEdge">positiveSlopeEdgeDeg:</label><input type="text" id="lEdge" style="border: 0; color: #c93e5c; font-weight: bold;" /></li>
+    <li><label for="oWidth">positiveSlopeWidthDeg:</label><input type="text" id="oWidth" style="border: 0; color: #f6931f; font-weight: bold;" /></li>
 </ul>
 <div><canvas id="myCanvas" width="250" height="250"></canvas></div>
 <div>
 <ul>
     <li><span style="color:#00a1c3">machAngle</span></li>
-    <li><span style="color:#c93e5c">leadingEdge</span></li>
-    <li><span style="color:#793ec9">trailingEdge</span></li>
+    <li><span style="color:#c93e5c">positiveSlopeEdgeDeg</span></li>
+    <li><span style="color:#793ec9">negativeSlopeEdgeDeg</span></li>
 </ul>
 </div>
 </body>
