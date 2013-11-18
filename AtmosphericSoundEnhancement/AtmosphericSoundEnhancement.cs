@@ -339,7 +339,7 @@ namespace ASE
         {
             //TODO make conditional on GameEvent hooks if available
             //null reference paring.
-            audioPanels.RemoveAll(item => item.gameObj == null);
+            audioPanels.RemoveAll(item => item.input == null);
             //TODO skip if in space (flatten state hierarchy slightly)
             if (FlightGlobals.ActiveVessel.parts.Count != lastVesselPartCount || audioPanels.Count() < 1)
             {
