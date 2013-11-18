@@ -15,11 +15,13 @@ namespace ASE
         none = 0x0,
         lowpass = 0x1,
         distortion = 0x2,
+        distortionlowpass = distortion | lowpass,
         reverb = 0x4,
+        reverblowpass = reverb | lowpass,
+        reverbdistortion = reverb | distortion,
         volume = 0x8,
-        shockwave = distortion | reverb,
-        filters = lowpass | distortion | reverb,
-        all = lowpass | distortion | reverb | volume
+        filters = reverb | distortion | lowpass,
+        all = volume | reverb | distortion | lowpass
     }
 
     /* ASEFilterPanel to cache and manipulate filter components on AudioSource.

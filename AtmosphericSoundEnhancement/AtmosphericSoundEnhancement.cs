@@ -32,10 +32,10 @@ namespace ASE
             Paused,
             Interior,
             Vacuum,
-            DenseAtmosphere,
+            NormalFlight,
             BeforeShockwave,
-            RisingEdge,
-            FallingEdge,
+            PositiveSlope,
+            NegativeSlope,
             AfterShockwave,
         }
         public Soundscape currentState;
@@ -44,24 +44,20 @@ namespace ASE
         public List<ASEFilterPanel> audioPanels;
         public int lastVesselPartCount;
 
-        PluginConfiguration config;
-
         AerodynamicsFX aeroFX;
 
-        float density;//realtime atmosphere density
-        float lowerThreshold;//lower end to mach audio and graphical effects
-        float upperThreshold;//upper end to mach graphical effects
+        float density; // Realtime atmospheric density.
+        float lowerThreshold; // Lower Mach number for Mach audio and graphical effects.
+        float upperThreshold; // Upper Mach number for Mach graphical effects
         float machNumber;//http://www.grc.nasa.gov/WWW/K-12/airplane/mach.html
         float machAngle;//http://www.grc.nasa.gov/WWW/K-12/airplane/machang.html
         float cameraAngle;
-        float shockwaveWidthDeg;//thickness of shockwave
+        float negativeSlopeWidthDeg; // Thickness of the shockwave.
         float shockwaveEffectStrength;
         float maxDistortion;
         float interiorVolumeScale;
         float interiorVolume;
         float maxShipVolume;
-        float volume;//realtime, dynamic
-        float plasmaEffectStrength;
         float condensationEffectStrength;
 
         public void Awake()
@@ -69,7 +65,7 @@ namespace ASE
             // Defaults for configurable parameters.
             lowerThreshold = 0.80f;
             upperThreshold = 1.20f;
-            shockwaveWidthDeg = 24f;
+            negativeSlopeWidthDeg = 24f;
             maxDistortion = 0.95f;
             interiorVolumeScale = 0.7f;
             condensationEffectStrength = 0.5f;
@@ -93,7 +89,6 @@ namespace ASE
             shockwaveEffectStrength = 1f;
             interiorVolume = GameSettings.SHIP_VOLUME * interiorVolumeScale;
             maxShipVolume = GameSettings.SHIP_VOLUME;
-            volume = GameSettings.SHIP_VOLUME;
 
             GetAeroFX();
         }
@@ -143,7 +138,7 @@ namespace ASE
                     Vacuum(); // No sounds.
                 else
                 {
-                    volume = maxShipVolume;
+                    //volume = maxShipVolume;
                     machNumber = AtmoDataProvider.Get().GetMach();
                     if (machNumber >= lowerThreshold)
                     {
@@ -156,25 +151,25 @@ namespace ASE
                         else
                             shockwaveEffectStrength = (machNumber - lowerThreshold) / (1f - lowerThreshold);
 
-                        shockwaveWidthDeg = 5f + (15f / machNumber);
-                        float inbound = machAngle - shockwaveWidthDeg;
-                        float outWidthDeg = shockwaveWidthDeg * (1f - shockwaveEffectStrength);
-                        float outbound = Mathf.Max(0f, machAngle + outWidthDeg);
+                        negativeSlopeWidthDeg = 5f + (15f / machNumber);
+                        float negativeSlopeEdgeDeg = machAngle - negativeSlopeWidthDeg;
+                        float positiveSlopeWidthDeg = negativeSlopeWidthDeg * (1f - shockwaveEffectStrength);
+                        float positiveSlopeEdgeDeg = Mathf.Max(0f, machAngle + positiveSlopeWidthDeg);
                         cameraAngle = Vector3.Angle
                             (FlightGlobals.ActiveVessel.GetSrfVelocity().normalized
                             , (FlightGlobals.ActiveVessel.transform.position - FlightCamera.fetch.transform.position).normalized
                             );
 
-                        if (cameraAngle >= inbound && cameraAngle <= outbound)//at shockwave
+                        if (cameraAngle >= negativeSlopeEdgeDeg && cameraAngle <= positiveSlopeEdgeDeg)//at shockwave
                             if (cameraAngle > machAngle)
-                                RisingEdge(outbound, outWidthDeg);
+                                PositiveSlope(positiveSlopeEdgeDeg, positiveSlopeWidthDeg);
                             else
-                                FallingEdge(inbound);
+                                NegativeSlope(negativeSlopeEdgeDeg);
                         else
                         {
-                            if (cameraAngle > outbound)
+                            if (cameraAngle > positiveSlopeEdgeDeg)
                                 BeforeShockwave();
-                            else if (cameraAngle < inbound)
+                            else if (cameraAngle < negativeSlopeEdgeDeg)
                                 AfterShockwave();
                         }
                     }
@@ -197,6 +192,27 @@ namespace ASE
         }
 
         #region Persistence
+        private void SavePluginConfig()
+        {
+            PluginConfiguration config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>();
+
+            config["LowerMachThreshold"] = lowerThreshold;
+            config["ShockwaveWidthDegrees"] = negativeSlopeWidthDeg;
+            config["MaxDistortion"] = maxDistortion;
+            config["InteriorVolume"] = interiorVolumeScale;
+            config.save();
+        }
+
+        private void LoadPluginConfig()
+        {
+            PluginConfiguration config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>();
+            config.load();
+            lowerThreshold = config.GetValue<float>("Lower Mach Threshold", 0.80f);
+            negativeSlopeWidthDeg = config.GetValue<float>("Shockwave Width Degrees", 24f);
+            maxDistortion = config.GetValue<float>("Max Distortion", 0.95f);
+            interiorVolumeScale = config.GetValue<float>("Interior Volume", 0.7f);
+        }
+
         private void LoadConfig()
         {
             if (!GameDatabase.Instance.ExistsConfigNode("AtmosphericSoundEnhancement"))
@@ -224,11 +240,11 @@ namespace ASE
                         if (float.TryParse(node.GetValue("upperMachThreshold"), out upperMachThreshold))
                             upperThreshold = upperMachThreshold;
                     }
-                    if (node.HasValue("shockwaveWidthDeg"))
+                    if (node.HasValue("trailingEdgeWidthDeg"))
                     {
-                        float shockWidthDeg = shockwaveWidthDeg;
-                        if (float.TryParse(node.GetValue("shockwaveWidthDeg"), out shockWidthDeg))
-                            shockwaveWidthDeg = shockWidthDeg;
+                        float trailingEdgeWidthDeg = negativeSlopeWidthDeg;
+                        if (float.TryParse(node.GetValue("trailingEdgeWidthDeg"), out trailingEdgeWidthDeg))
+                            negativeSlopeWidthDeg = trailingEdgeWidthDeg;
                     }
                     if (node.HasValue("maxDistortion"))
                     {
@@ -265,7 +281,8 @@ namespace ASE
                 {
                     aPanel.SetKnobs(Knobs.lowpass, 600);
                     aPanel.SetKnobs(Knobs.volume, interiorVolume);
-                    aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1);
+                    aPanel.SetKnobs(Knobs.distortion, -1);
+                    aPanel.SetKnobs(Knobs.reverb, 0.05f);
                 }
             }
         }
@@ -277,7 +294,7 @@ namespace ASE
             {
                 Debug.Log("ASE -- Switching to Vacuum");
                 foreach (ASEFilterPanel aPanel in audioPanels)
-                    aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.distortion | Knobs.reverb, -1);//silence
+                    aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);//silence
             }
         }
 
@@ -287,35 +304,33 @@ namespace ASE
         private void BeforeShockwave()
         {
             currentState = Soundscape.BeforeShockwave;
-            volume *= (1f - shockwaveEffectStrength);
+            float volume = maxShipVolume * (1f - shockwaveEffectStrength);
             foreach (ASEFilterPanel aPanel in audioPanels)
                 aPanel.SetKnobs(Knobs.volume, volume);
             if (currentState != lastState)
             {
                 Debug.Log("ASE -- Switching to Before Shock");
                 foreach (ASEFilterPanel aPanel in audioPanels)
-                    aPanel.SetKnobs(Knobs.lowpass | Knobs.distortion | Knobs.reverb, -1);//silence
+                    aPanel.SetKnobs(Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);//effects off
             }
         }
 
         /// <summary>
         /// The leading edge of the shock cone: The first air the craft meets.
         /// </summary>
-        /// <param name="outbound"></param>
-        /// <param name="outWidthDeg"></param>
-        private void RisingEdge(float outbound, float outWidthDeg)
+        /// <param name="positiveSlopeEdgeDeg"></param>
+        /// <param name="positiveSlopeWidthDeg"></param>
+        private void PositiveSlope(float positiveSlopeEdgeDeg, float positiveSlopeWidthDeg)
         {
-            currentState = Soundscape.RisingEdge;
-            volume *= Mathf.Lerp((1f - shockwaveEffectStrength), 1f, (outbound - cameraAngle) / outWidthDeg);
-
+            currentState = Soundscape.PositiveSlope;
+            float volume = Mathf.Lerp((1f - shockwaveEffectStrength), 1f, (positiveSlopeEdgeDeg - cameraAngle) / positiveSlopeWidthDeg);
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Rising Edge");
+            float dynEffect = (positiveSlopeEdgeDeg - cameraAngle) / positiveSlopeWidthDeg * shockwaveEffectStrength * maxDistortion ;
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, 
-                    (outbound - cameraAngle) / outWidthDeg * maxDistortion * shockwaveEffectStrength
-                );
+                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, dynEffect);
                 AtmosphericAttenuation(aPanel);
             }
         }
@@ -323,19 +338,17 @@ namespace ASE
         /// <summary>
         /// The trailing edge of the shock cone, behind the shock wave.
         /// </summary>
-        /// <param name="inbound"></param>
-        private void FallingEdge(float inbound)
+        /// <param name="negativeSlopeEdgeDeg"></param>
+        private void NegativeSlope(float negativeSlopeEdgeDeg)
         {
-            currentState = Soundscape.FallingEdge;
+            currentState = Soundscape.NegativeSlope;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Falling Edge");
+            float dynEffect = ((cameraAngle - negativeSlopeEdgeDeg) / negativeSlopeWidthDeg) * shockwaveEffectStrength * maxDistortion;
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
-                aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb,
-                    (cameraAngle - inbound) / shockwaveWidthDeg * maxDistortion * shockwaveEffectStrength
-                );
-                //aPanel.SetKnobs(Knobs.reverb, 0.15f);//testing light reverb
+                aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, dynEffect);
                 AtmosphericAttenuation(aPanel);
             }
         }
@@ -350,20 +363,21 @@ namespace ASE
                 Debug.Log("ASE -- Switching to After Shock");
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
-                aPanel.SetKnobs(Knobs.volume, volume);
-                aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1f);
+                aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                aPanel.SetKnobs(Knobs.distortion, -1f);
+                aPanel.SetKnobs(Knobs.reverb, 0.15f);
                 AtmosphericAttenuation(aPanel);
             }
         }
 
         private void NormalFlight()
         {
-            currentState = Soundscape.DenseAtmosphere;
+            currentState = Soundscape.NormalFlight;
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Normal Atm Flight");
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
-                aPanel.SetKnobs(Knobs.volume, volume);
+                aPanel.SetKnobs(Knobs.volume, maxShipVolume);
                 aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1);
                 AtmosphericAttenuation(aPanel);
             }
@@ -388,7 +402,7 @@ namespace ASE
         {
             //TODO make conditional on GameEvent hooks if available
             //null reference paring.
-            audioPanels.RemoveAll(item => item.gameObj == null);
+            audioPanels.RemoveAll(item => item.input == null);
             //TODO skip if in space (flatten state hierarchy slightly)
             if (FlightGlobals.ActiveVessel.parts.Count != lastVesselPartCount || audioPanels.Count() < 1)
             {
@@ -397,7 +411,10 @@ namespace ASE
                 foreach (AudioSource s in audioSources)
                 {
                     if (s.gameObject.GetComponent<Part>() != null && s.clip != null)
+                    {
+                        Debug.Log("ASE -- Found AudioSource on Part: " + s.gameObject.GetComponent<Part>());
                         audioPanels.Add(new ASEFilterPanel(s.gameObject, s));
+                    }
                 }
 
                 GetAeroFX();
@@ -408,7 +425,7 @@ namespace ASE
 
                 //add relevant filters
                 foreach (ASEFilterPanel aPanel in audioPanels)
-                    aPanel.AddKnobs(Knobs.filters);
+                    aPanel.AddKnobs(Knobs.distortion | Knobs.lowpass | Knobs.reverb);
                 lastVesselPartCount = FlightGlobals.ActiveVessel.parts.Count;
             }
         }

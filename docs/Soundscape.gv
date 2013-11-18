@@ -1,0 +1,65 @@
+/*
+To render this document as a png image use:
+  $ fdp -Tpng Soundscape.gv -o Soundscape.png
+ */
+digraph Soundscape
+{
+    label="Soundscape Hierarchy and Conditions";
+    labelloc="t";
+    fontsize=14;
+    layout=dot;
+    rankdir=TB;
+    nodesep=0.3;
+    ranksep=0.4;
+    constraint=true;
+    splines=true;
+    labelfloat=true;
+    decorate=true;
+    overlap=false;
+    outputorder=edgesfirst;
+
+    subgraph states
+    {
+        node [shape=circle,height=1,fontsize=10];
+        Interior;
+        Vacuum;
+        Leading [label="Leading\nEdge"];
+        Trailing [label="Trailing\nEdge"];
+        Before [label="Before\nShockwave"];
+        After [label="After\nShockwave"];
+        Normal [label="Normal\nFlight"];
+    }
+
+    subgraph conditions
+    {
+        node [shape=rect,height=1,fontsize=10];
+        CameraInside [label="Camera is\nInternal, IVA, or Map"];
+        LowDensity [label="Atmospheric Density <= 0\n(Vacuum?)"];
+        Transonic [label="Mach Number >= Low Threshold\n(Transonic?)"];
+        CameraDanger [label="Camera Angle >= Trailing Edge\nCamera Angle <= Leading Edge\n(Camera inside Shockwave?)"];
+        CameraLeading [label="Camera Angle > Mach Angle\n(Rising Edge?)"];
+        CameraBefore [label="Camera Angle > Leading Edge\n(Infront of Vessel?)"];
+    }
+
+    subgraph truthbranch
+    {
+        edge [color=blue,fontsize=10];
+        CameraInside -> Interior [label="True"];
+        LowDensity -> Vacuum [label="True"];
+        Transonic -> CameraDanger [label="True"];
+        CameraDanger -> CameraLeading [label="True"];
+        CameraLeading -> Leading [label="True"];
+        CameraBefore -> Before [label="True"];
+    }
+
+    subgraph falsebranch
+    {
+        edge [color=red,fontsize=10];
+        CameraInside -> LowDensity [label="False"];
+        LowDensity -> Transonic [label="False"];
+        CameraLeading -> Trailing [label="False"];
+        CameraDanger -> CameraBefore [label="False"];
+        CameraBefore -> After [label="False"];
+        Transonic -> Normal [label="False"];
+    }
+}
