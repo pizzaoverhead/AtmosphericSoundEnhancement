@@ -15,6 +15,15 @@ namespace ASE
         private const float MaxFreqCoef = 2500000;
         // All Kerbal-audible frequencies propagate through air with a density above ~0.0089 kg/m^3.
         private const float MinFullSpectrumDensity = 0.0089f;
+        // In stock KSP, hypersonic/re-entry effects aren't displayed in air with a density above 0.1 kg/m^3.
+        private const float MaxPlasmaActivationDensity = 0.10f;
+
+        // Deadly Reentry compatibility.
+        private const float DRStartThermal = 800; // m/s
+        private const float DRFullThermal = 1150; // m/s
+
+        // Remote Tech
+        // Block communications when plasma is active.
 
         // States of sound medium
         public enum Soundscape
@@ -57,21 +66,20 @@ namespace ASE
 
         public void Awake()
         {
-            // Configurable.
+            // Defaults for configurable parameters.
             lowerThreshold = 0.80f;
             upperThreshold = 1.20f;
             shockwaveWidthDeg = 24f;
             maxDistortion = 0.95f;
             interiorVolumeScale = 0.7f;
-            plasmaEffectStrength = 1f;
             condensationEffectStrength = 0.5f;
+
+            LoadConfig();
             
             // TODO:
             // Option for microphone fixed to craft.
             // Options for shockwave reverb/distortion levels.
             // Option for maintaining low-pass sound in vacuum.
-
-            // LoadConfig();
 
             // Initialise dynamic variables.
             currentState = Soundscape.Unknown;
@@ -114,9 +122,11 @@ namespace ASE
             currentState = lastState;
         }
 
-
+        /// <summary>
+        /// Called once per frame.
+        /// </summary>
         public void Update()
-        {//every frame
+        {
             if (currentState == Soundscape.Paused) return;
             UpdateAudioSources();
             if (audioPanels.Count() == 0) return;//TODO weak, temporary
@@ -174,37 +184,77 @@ namespace ASE
             }//end external view
 
             UpdateAeroFX();
+        }// end OnUpdate
+
+        public void FixedUpdate()
+        {
+            UpdateAeroFX();
+        }
+
+        public void LateUpdate()
+        {
+            UpdateAeroFX();
         }
 
         #region Persistence
         private void LoadConfig()
         {
-            PluginConfiguration config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>();
-            config.load();
-            lowerThreshold = config.GetValue<float>("Lower Mach Threshold", 0.80f);
-            shockwaveWidthDeg = config.GetValue<float>("Shockwave Width Degrees", 24f);
-            maxDistortion = config.GetValue<float>("Max Distortion", 0.95f);
-            interiorVolumeScale = config.GetValue<float>("Interior Volume", 0.7f);
-        }
-
-        // Bootstrap the configuration file.
-        private void SaveConfig()
-        {
-            if (config == null)
-                config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>();
-
-            config["LowerMachThreshold"] = lowerThreshold;
-            config["ShockwaveWidthDegrees"] = shockwaveWidthDeg;
-            config["MaxDistortion"] = maxDistortion;
-            config["InteriorVolume"] = interiorVolumeScale;
-            config.save();
+            if (!GameDatabase.Instance.ExistsConfigNode("AtmosphericSoundEnhancement"))
+                Debug.Log("ASE -- No configuration file found.");
+            else
+            {
+                foreach (ConfigNode node in GameDatabase.Instance.GetConfigNodes("AtmosphericSoundEnhancement"))
+                {
+                    Debug.Log("# Parsing node: " + node);
+                    if (node.HasValue("interiorVolumeScale"))
+                    {
+                        float interiorVol = interiorVolumeScale;
+                        if (float.TryParse(node.GetValue("interiorVolumeScale"), out interiorVol))
+                            interiorVolumeScale = interiorVol;
+                    }
+                    if (node.HasValue("lowerMachThreshold"))
+                    {
+                        float lowerMachThreshold = lowerThreshold;
+                        if (float.TryParse(node.GetValue("lowerMachThreshold"), out lowerMachThreshold))
+                            lowerThreshold = lowerMachThreshold;
+                    }
+                    if (node.HasValue("upperMachThreshold"))
+                    {
+                        float upperMachThreshold = upperThreshold;
+                        if (float.TryParse(node.GetValue("upperMachThreshold"), out upperMachThreshold))
+                            upperThreshold = upperMachThreshold;
+                    }
+                    if (node.HasValue("shockwaveWidthDeg"))
+                    {
+                        float shockWidthDeg = shockwaveWidthDeg;
+                        if (float.TryParse(node.GetValue("shockwaveWidthDeg"), out shockWidthDeg))
+                            shockwaveWidthDeg = shockWidthDeg;
+                    }
+                    if (node.HasValue("maxDistortion"))
+                    {
+                        float maxDist = maxDistortion;
+                        if (float.TryParse(node.GetValue("maxDistortion"), out maxDist))
+                            maxDistortion = maxDist;
+                    }
+                    if (node.HasValue("interiorVolumeScale"))
+                    {
+                        float interiorVol = interiorVolumeScale;
+                        if (float.TryParse(node.GetValue("interiorVolumeScale"), out interiorVol))
+                            interiorVolumeScale = interiorVol;
+                    }
+                    if (node.HasValue("condensationEffectStrength"))
+                    {
+                        float condStrength = condensationEffectStrength;
+                        if (float.TryParse(node.GetValue("condensationEffectStrength"), out condStrength))
+                            condensationEffectStrength = condStrength;
+                    }
+                }
+            }
         }
         #endregion Persistence
 
+        // Many simple, procedure methods to simplify Update() readability.
         #region Audio updates
-        /* Many simple, procedure methods to simplify Update() readability.
-         * 
-         */
         private void Interior()
         {
             currentState = Soundscape.Interior;
@@ -319,15 +369,21 @@ namespace ASE
             }
         }
 
+        /// <summary>
+        /// Set the high-frequency attenuation due to thinning atmosphere.
+        /// </summary>
+        /// <param name="asePanel"></param>
         private void AtmosphericAttenuation(ASEFilterPanel asePanel)
         {
             if (density <= MinFullSpectrumDensity)
                 asePanel.SetKnobs(Knobs.lowpass, (float)density * MaxFreqCoef);
+            else
+                asePanel.SetKnobs(Knobs.lowpass, -1);
         }
 
-        /* Update lists of noisy parts.  Update last vessel part count.
-         *
-         */
+        /// <summary>
+        /// Update lists of noisy parts.  Update last vessel part count.
+        /// </summary>
         private void UpdateAudioSources()
         {
             //TODO make conditional on GameEvent hooks if available
@@ -358,6 +414,7 @@ namespace ASE
         }
         #endregion Audio updates
 
+        #region Graphical effects
         private void GetAeroFX()
         {
             GameObject fxLogicObject = GameObject.Find("FXLogic");
@@ -369,6 +426,8 @@ namespace ASE
 
         private void UpdateAeroFX()
         {
+            if (aeroFX == null)
+                GetAeroFX();
             if (aeroFX != null)
             {
                 if (machNumber < lowerThreshold)
@@ -379,7 +438,7 @@ namespace ASE
                 else if (machNumber >= lowerThreshold && machNumber <= upperThreshold)
                 {
                     // Transonic.
-                    aeroFX.airspeed = 400; // Lock speed within the range that it occurs so we can control it.
+                    aeroFX.airspeed = 400; // Lock speed within the range that it occurs so we can control it using one variable.
                     aeroFX.fudge1 = 3 + (1 - Mathf.Abs((machNumber - 1) / (1 - lowerThreshold))) * condensationEffectStrength;
                     aeroFX.state = 0; // Condensation.
                 }
@@ -387,20 +446,26 @@ namespace ASE
                 {
                     // Supersonic.
                     aeroFX.fudge1 = 0;
+                    aeroFX.state = 0;
                 }
-                else if (machNumber >= 3 && machNumber < 25)
+                else if (aeroFX.velocity.magnitude < DRStartThermal) // approximate speed where shockwaves begin visibly glowing
                 {
-                    // Hypersonic.
-                    aeroFX.fudge1 = 3; // + ((machNumber - 5) / (25 - 5)) * plasmaEffectStrength;
-                    aeroFX.state = 1; // Plasma.
+                    aeroFX.fudge1 = 0;
+                    aeroFX.state = 0;
                 }
-                else if (machNumber >= 25)
+                else if (aeroFX.velocity.magnitude >= DRFullThermal)
                 {
-                    // Re-entry.
-                    aeroFX.fudge1 = 3; // + plasmaEffectStrength;
+                    aeroFX.fudge1 = 3;
                     aeroFX.state = 1;
                 }
+                else
+                {
+                    aeroFX.state = (aeroFX.velocity.magnitude - DRStartThermal) / (DRFullThermal - DRStartThermal);
+                    aeroFX.fudge1 = 3;
+                }
             }
+            //Debug.Log("#FX After: " + aeroFX.fudge1 + " " + aeroFX.state);
         }
+        #endregion Graphical effects
     }//end class
 }//namespace
