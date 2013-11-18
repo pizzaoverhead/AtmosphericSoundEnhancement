@@ -348,7 +348,10 @@ namespace ASE
                 foreach (AudioSource s in audioSources)
                 {
                     if (s.gameObject.GetComponent<Part>() != null)
+                    {
+                        Debug.Log("ASE -- Found AudioSource on Part: " + s.gameObject.GetComponent<Part>());
                         audioPanels.Add(new ASEFilterPanel(s.gameObject, s));
+                    }
                 }
 
                 //add relevant filters
