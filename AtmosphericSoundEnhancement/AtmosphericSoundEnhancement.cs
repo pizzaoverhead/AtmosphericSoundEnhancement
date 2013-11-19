@@ -22,6 +22,9 @@ namespace ASE
         private const float DRStartThermal = 800; // m/s
         private const float DRFullThermal = 1150; // m/s
 
+        ConfigNode config;
+        string configSavePath = "GameData/AtmosphericSoundEnhancement/settings.cfg";
+
         // Remote Tech
         // Block communications when plasma is active.
 
@@ -103,6 +106,7 @@ namespace ASE
         {
             GameEvents.onGamePause.Remove(new EventVoid.OnEvent(OnPause));
             GameEvents.onGameUnpause.Remove(new EventVoid.OnEvent(OnUnPause));
+            SaveConfig();
         }
 
         public void OnPause()
@@ -192,79 +196,85 @@ namespace ASE
         }
 
         #region Persistence
-        private void SavePluginConfig()
+        public void SaveConfig()
         {
-            PluginConfiguration config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>();
+            Debug.Log("ASE -- Saving...");
 
-            config["LowerMachThreshold"] = lowerThreshold;
-            config["ShockwaveWidthDegrees"] = negativeSlopeWidthDeg;
-            config["MaxDistortion"] = maxDistortion;
-            config["InteriorVolume"] = interiorVolumeScale;
-            config.save();
+            UpdateConfigValue("interiorVolumeScale", interiorVolumeScale);
+            UpdateConfigValue("lowerMachThreshold", lowerThreshold);
+            UpdateConfigValue("upperMachThreshold", upperThreshold);
+            UpdateConfigValue("negativeSlopeWidthDeg", negativeSlopeWidthDeg);
+            UpdateConfigValue("maxDistortion", maxDistortion);
+            UpdateConfigValue("condensationEffectStrength", condensationEffectStrength);
+
+            config.Save(configSavePath);
         }
 
-        private void LoadPluginConfig()
+        private void UpdateConfigValue(string name, object value)
         {
-            PluginConfiguration config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>();
-            config.load();
-            lowerThreshold = config.GetValue<float>("Lower Mach Threshold", 0.80f);
-            negativeSlopeWidthDeg = config.GetValue<float>("Shockwave Width Degrees", 24f);
-            maxDistortion = config.GetValue<float>("Max Distortion", 0.95f);
-            interiorVolumeScale = config.GetValue<float>("Interior Volume", 0.7f);
-        }
-
-        private void LoadConfig()
-        {
-            if (!GameDatabase.Instance.ExistsConfigNode("AtmosphericSoundEnhancement"))
-                Debug.Log("ASE -- No configuration file found.");
-            else
+            if (config == null)
             {
-                foreach (ConfigNode node in GameDatabase.Instance.GetConfigNodes("AtmosphericSoundEnhancement"))
-                {
-                    Debug.Log("# Parsing node: " + node);
-                    if (node.HasValue("interiorVolumeScale"))
-                    {
-                        float interiorVol = interiorVolumeScale;
-                        if (float.TryParse(node.GetValue("interiorVolumeScale"), out interiorVol))
-                            interiorVolumeScale = interiorVol;
-                    }
-                    if (node.HasValue("lowerMachThreshold"))
-                    {
-                        float lowerMachThreshold = lowerThreshold;
-                        if (float.TryParse(node.GetValue("lowerMachThreshold"), out lowerMachThreshold))
-                            lowerThreshold = lowerMachThreshold;
-                    }
-                    if (node.HasValue("upperMachThreshold"))
-                    {
-                        float upperMachThreshold = upperThreshold;
-                        if (float.TryParse(node.GetValue("upperMachThreshold"), out upperMachThreshold))
-                            upperThreshold = upperMachThreshold;
-                    }
-                    if (node.HasValue("trailingEdgeWidthDeg"))
-                    {
-                        float trailingEdgeWidthDeg = negativeSlopeWidthDeg;
-                        if (float.TryParse(node.GetValue("trailingEdgeWidthDeg"), out trailingEdgeWidthDeg))
-                            negativeSlopeWidthDeg = trailingEdgeWidthDeg;
-                    }
-                    if (node.HasValue("maxDistortion"))
-                    {
-                        float maxDist = maxDistortion;
-                        if (float.TryParse(node.GetValue("maxDistortion"), out maxDist))
-                            maxDistortion = maxDist;
-                    }
-                    if (node.HasValue("interiorVolumeScale"))
-                    {
-                        float interiorVol = interiorVolumeScale;
-                        if (float.TryParse(node.GetValue("interiorVolumeScale"), out interiorVol))
-                            interiorVolumeScale = interiorVol;
-                    }
-                    if (node.HasValue("condensationEffectStrength"))
-                    {
-                        float condStrength = condensationEffectStrength;
-                        if (float.TryParse(node.GetValue("condensationEffectStrength"), out condStrength))
-                            condensationEffectStrength = condStrength;
-                    }
-                }
+                config = ConfigNode.Load(configSavePath);
+                if (config == null)
+                    config = new ConfigNode();
+            }
+
+            if (config.HasValue(name))
+                config.RemoveValue(name);
+            config.AddValue(name, value);
+        }
+
+        public void LoadConfig()
+        {
+            Debug.Log("ASE -- Loading...");
+            config = ConfigNode.Load(configSavePath);
+            if (config == null)
+            {
+                Debug.Log("ASE -- No config file present.");
+                return;
+            }
+
+            if (config.HasValue("interiorVolumeScale"))
+            {
+                Debug.Log("ASE -- Found interiorVolumeScale");
+                float interiorVol = interiorVolumeScale;
+                if (float.TryParse(config.GetValue("interiorVolumeScale"), out interiorVol))
+                    interiorVolumeScale = interiorVol;
+            }
+            if (config.HasValue("lowerMachThreshold"))
+            {
+                Debug.Log("ASE -- Found lowerMachThreshold");
+                float lowerMachThreshold = lowerThreshold;
+                if (float.TryParse(config.GetValue("lowerMachThreshold"), out lowerMachThreshold))
+                    lowerThreshold = lowerMachThreshold;
+            }
+            if (config.HasValue("upperMachThreshold"))
+            {
+                Debug.Log("ASE -- Found upperMachThreshold");
+                float upperMachThreshold = upperThreshold;
+                if (float.TryParse(config.GetValue("upperMachThreshold"), out upperMachThreshold))
+                    upperThreshold = upperMachThreshold;
+            }
+            if (config.HasValue("trailingEdgeWidthDeg"))
+            {
+                Debug.Log("ASE -- Found negativeSlopeWidthDeg");
+                float negativeWidthDeg = negativeSlopeWidthDeg;
+                if (float.TryParse(config.GetValue("negativeSlopeWidthDeg"), out negativeWidthDeg))
+                    negativeSlopeWidthDeg = negativeWidthDeg;
+            }
+            if (config.HasValue("maxDistortion"))
+            {
+                Debug.Log("ASE -- Found maxDistortion");
+                float maxDist = maxDistortion;
+                if (float.TryParse(config.GetValue("maxDistortion"), out maxDist))
+                    maxDistortion = maxDist;
+            }
+            if (config.HasValue("condensationEffectStrength"))
+            {
+                Debug.Log("ASE -- Found condensationEffectStrength");
+                float condStrength = condensationEffectStrength;
+                if (float.TryParse(config.GetValue("condensationEffectStrength"), out condStrength))
+                    condensationEffectStrength = condStrength;
             }
         }
         #endregion Persistence
