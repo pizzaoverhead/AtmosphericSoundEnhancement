@@ -22,6 +22,9 @@ namespace ASE
         private const float DRStartThermal = 800; // m/s
         private const float DRFullThermal = 1150; // m/s
 
+        private const float MinLowPassFreq = 10; // Hz
+        private const float MaxLowPassFreq = 22000; // Hz
+
         ConfigNode config;
         string configSavePath = "GameData/AtmosphericSoundEnhancement/settings.cfg";
 
@@ -60,18 +63,23 @@ namespace ASE
         float maxDistortion;
         float interiorVolumeScale;
         float interiorVolume;
+        float interiorMaxFreq; // Hz
         float maxShipVolume;
         float condensationEffectStrength;
+        float maxVacuumFreq; // Hz
+        float maxSupersonicFreq; // Hz
 
         public void Awake()
         {
             // Defaults for configurable parameters.
             lowerThreshold = 0.80f;
             upperThreshold = 1.20f;
-            negativeSlopeWidthDeg = 24f;
             maxDistortion = 0.95f;
             interiorVolumeScale = 0.7f;
+            interiorMaxFreq = 300f;
             condensationEffectStrength = 0.5f;
+            maxVacuumFreq = 0; // 150
+            maxSupersonicFreq = 0; // 300
 
             LoadConfig();
             
@@ -90,6 +98,7 @@ namespace ASE
             machAngle = 0;
             cameraAngle = 0;
             shockwaveEffectStrength = 1f;
+            negativeSlopeWidthDeg = 24f;
             interiorVolume = GameSettings.SHIP_VOLUME * interiorVolumeScale;
             maxShipVolume = GameSettings.SHIP_VOLUME;
 
@@ -127,6 +136,7 @@ namespace ASE
         public void Update()
         {
             if (currentState == Soundscape.Paused) return;
+            UpdateAeroFX();
             UpdateAudioSources();
             if (audioPanels.Count() == 0) return;//TODO weak, temporary
 
@@ -139,7 +149,7 @@ namespace ASE
             {
                 density = (float)AtmoDataProvider.Get().GetDensity();
                 if (density <= 0)
-                    Vacuum(); // No sounds.
+                    Vacuum();
                 else
                 {
                     //volume = maxShipVolume;
@@ -181,8 +191,6 @@ namespace ASE
                         NormalFlight();
                 } //end dense atmospheric conditions
             }//end external view
-
-            UpdateAeroFX();
         }// end OnUpdate
 
         public void FixedUpdate()
@@ -201,11 +209,13 @@ namespace ASE
             Debug.Log("ASE -- Saving...");
 
             UpdateConfigValue("interiorVolumeScale", interiorVolumeScale);
+            UpdateConfigValue("interiorMaxFreq", interiorMaxFreq);
             UpdateConfigValue("lowerMachThreshold", lowerThreshold);
             UpdateConfigValue("upperMachThreshold", upperThreshold);
-            UpdateConfigValue("negativeSlopeWidthDeg", negativeSlopeWidthDeg);
             UpdateConfigValue("maxDistortion", maxDistortion);
             UpdateConfigValue("condensationEffectStrength", condensationEffectStrength);
+            UpdateConfigValue("maxVacuumFreq", maxVacuumFreq);
+            UpdateConfigValue("maxSupersonicFreq", maxSupersonicFreq);
 
             config.Save(configSavePath);
         }
@@ -241,6 +251,13 @@ namespace ASE
                 if (float.TryParse(config.GetValue("interiorVolumeScale"), out interiorVol))
                     interiorVolumeScale = interiorVol;
             }
+            if (config.HasValue("interiorMaxFreq"))
+            {
+                Debug.Log("ASE -- Found interiorMaxFreq");
+                float interiorFreq = interiorMaxFreq;
+                if (float.TryParse(config.GetValue("interiorMaxFreq"), out interiorFreq))
+                    interiorMaxFreq = interiorFreq;
+            }
             if (config.HasValue("lowerMachThreshold"))
             {
                 Debug.Log("ASE -- Found lowerMachThreshold");
@@ -254,13 +271,6 @@ namespace ASE
                 float upperMachThreshold = upperThreshold;
                 if (float.TryParse(config.GetValue("upperMachThreshold"), out upperMachThreshold))
                     upperThreshold = upperMachThreshold;
-            }
-            if (config.HasValue("trailingEdgeWidthDeg"))
-            {
-                Debug.Log("ASE -- Found negativeSlopeWidthDeg");
-                float negativeWidthDeg = negativeSlopeWidthDeg;
-                if (float.TryParse(config.GetValue("negativeSlopeWidthDeg"), out negativeWidthDeg))
-                    negativeSlopeWidthDeg = negativeWidthDeg;
             }
             if (config.HasValue("maxDistortion"))
             {
@@ -276,6 +286,20 @@ namespace ASE
                 if (float.TryParse(config.GetValue("condensationEffectStrength"), out condStrength))
                     condensationEffectStrength = condStrength;
             }
+            if (config.HasValue("maxVacuumFreq"))
+            {
+                Debug.Log("ASE -- Found maxVacuumFreq");
+                float vaccFreq = maxVacuumFreq;
+                if (float.TryParse(config.GetValue("maxVacuumFreq"), out vaccFreq))
+                    maxVacuumFreq = vaccFreq;
+            }
+            if (config.HasValue("maxSupersonicFreq"))
+            {
+                Debug.Log("ASE -- Found maxSupersonicFreq");
+                float superFreq = maxSupersonicFreq;
+                if (float.TryParse(config.GetValue("maxSupersonicFreq"), out superFreq))
+                    maxSupersonicFreq = superFreq;
+            }
         }
         #endregion Persistence
 
@@ -289,7 +313,7 @@ namespace ASE
                 Debug.Log("ASE -- Switching to Interior");
                 foreach (ASEFilterPanel aPanel in audioPanels)
                 {
-                    aPanel.SetKnobs(Knobs.lowpass, 600);
+                    aPanel.SetKnobs(Knobs.lowpass, interiorMaxFreq);
                     aPanel.SetKnobs(Knobs.volume, interiorVolume);
                     aPanel.SetKnobs(Knobs.distortion, -1);
                     aPanel.SetKnobs(Knobs.reverb, 0.05f);
@@ -299,12 +323,26 @@ namespace ASE
 
         private void Vacuum()
         {
-            currentState = Soundscape.Vacuum;
-            if (currentState != lastState)
+            if (maxVacuumFreq < MinLowPassFreq)
             {
-                Debug.Log("ASE -- Switching to Vacuum");
+                // Vacuum is set to silent.
+                currentState = Soundscape.Vacuum;
+                if (currentState != lastState)
+                {
+                    Debug.Log("ASE -- Switching to Vacuum");
+                    foreach (ASEFilterPanel aPanel in audioPanels)
+                        aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);
+                }
+            }
+            else
+            {
+                // Vacuum is set to quiet.
                 foreach (ASEFilterPanel aPanel in audioPanels)
-                    aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);//silence
+                {
+                    aPanel.SetKnobs(Knobs.lowpass, maxVacuumFreq);
+                    aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                    aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1);
+                }
             }
         }
 
@@ -314,14 +352,33 @@ namespace ASE
         private void BeforeShockwave()
         {
             currentState = Soundscape.BeforeShockwave;
-            float volume = maxShipVolume * (1f - shockwaveEffectStrength);
-            foreach (ASEFilterPanel aPanel in audioPanels)
-                aPanel.SetKnobs(Knobs.volume, volume);
-            if (currentState != lastState)
+            if (maxSupersonicFreq < MinLowPassFreq)
             {
-                Debug.Log("ASE -- Switching to Before Shock");
+                // Silent ahead of the shockwave.
+                float volume = maxShipVolume * (1f - shockwaveEffectStrength);
                 foreach (ASEFilterPanel aPanel in audioPanels)
-                    aPanel.SetKnobs(Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);//effects off
+                    aPanel.SetKnobs(Knobs.volume, volume);
+                if (currentState != lastState)
+                {
+                    Debug.Log("ASE -- Switching to Before Shock");
+                    foreach (ASEFilterPanel aPanel in audioPanels)
+                        aPanel.SetKnobs(Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);//effects off
+                }
+            }
+            else
+            {
+                // Low frequency ahead of the shockwave.
+                foreach (ASEFilterPanel aPanel in audioPanels)
+                {
+                    aPanel.SetKnobs(Knobs.reverb | Knobs.distortion, -1);
+                    aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                    float supersonicFreq = Mathf.Lerp(maxSupersonicFreq, MaxLowPassFreq, 1f - shockwaveEffectStrength);
+                    float atmoFreq = GetAtmosphericAttenuation();
+                    if (atmoFreq > 0)
+                        aPanel.SetKnobs(Knobs.lowpass, Math.Min(atmoFreq, supersonicFreq));
+                    else
+                        aPanel.SetKnobs(Knobs.lowpass, supersonicFreq);
+                }
             }
         }
 
@@ -341,7 +398,7 @@ namespace ASE
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
                 aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, dynEffect);
-                AtmosphericAttenuation(aPanel);
+                aPanel.SetKnobs(Knobs.lowpass, GetAtmosphericAttenuation());
             }
         }
 
@@ -359,7 +416,7 @@ namespace ASE
             {
                 aPanel.SetKnobs(Knobs.volume, maxShipVolume);
                 aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, dynEffect);
-                AtmosphericAttenuation(aPanel);
+                aPanel.SetKnobs(Knobs.lowpass, GetAtmosphericAttenuation());
             }
         }
 
@@ -376,7 +433,7 @@ namespace ASE
                 aPanel.SetKnobs(Knobs.volume, maxShipVolume);
                 aPanel.SetKnobs(Knobs.distortion, -1f);
                 aPanel.SetKnobs(Knobs.reverb, 0.15f);
-                AtmosphericAttenuation(aPanel);
+                aPanel.SetKnobs(Knobs.lowpass, GetAtmosphericAttenuation());
             }
         }
 
@@ -389,20 +446,23 @@ namespace ASE
             {
                 aPanel.SetKnobs(Knobs.volume, maxShipVolume);
                 aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1);
-                AtmosphericAttenuation(aPanel);
+                aPanel.SetKnobs(Knobs.lowpass, GetAtmosphericAttenuation());
             }
         }
 
         /// <summary>
-        /// Set the high-frequency attenuation due to thinning atmosphere.
+        /// Get the high-frequency attenuation due to thinning atmosphere.
         /// </summary>
         /// <param name="asePanel"></param>
-        private void AtmosphericAttenuation(ASEFilterPanel asePanel)
+        private float GetAtmosphericAttenuation()
         {
             if (density <= MinFullSpectrumDensity)
-                asePanel.SetKnobs(Knobs.lowpass, (float)density * MaxFreqCoef);
+            {
+                // Get the highest frequency allowed.
+                return Mathf.Max((float)density * MaxFreqCoef, maxVacuumFreq);
+            }
             else
-                asePanel.SetKnobs(Knobs.lowpass, -1);
+                return -1; // Thick atmosphere, normal sounds.
         }
 
         /// <summary>
@@ -427,7 +487,6 @@ namespace ASE
                     }
                 }
 
-                GetAeroFX();
                 if (aeroFX != null)
                 {
                     audioPanels.Add(new ASEFilterPanel(aeroFX.airspeedNoise.gameObject, aeroFX.airspeedNoise));
