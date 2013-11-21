@@ -246,56 +246,48 @@ namespace ASE
 
             if (config.HasValue("interiorVolumeScale"))
             {
-                Debug.Log("ASE -- Found interiorVolumeScale");
                 float interiorVol = interiorVolumeScale;
                 if (float.TryParse(config.GetValue("interiorVolumeScale"), out interiorVol))
                     interiorVolumeScale = interiorVol;
             }
             if (config.HasValue("interiorMaxFreq"))
             {
-                Debug.Log("ASE -- Found interiorMaxFreq");
                 float interiorFreq = interiorMaxFreq;
                 if (float.TryParse(config.GetValue("interiorMaxFreq"), out interiorFreq))
                     interiorMaxFreq = interiorFreq;
             }
             if (config.HasValue("lowerMachThreshold"))
             {
-                Debug.Log("ASE -- Found lowerMachThreshold");
                 float lowerMachThreshold = lowerThreshold;
                 if (float.TryParse(config.GetValue("lowerMachThreshold"), out lowerMachThreshold))
                     lowerThreshold = lowerMachThreshold;
             }
             if (config.HasValue("upperMachThreshold"))
             {
-                Debug.Log("ASE -- Found upperMachThreshold");
                 float upperMachThreshold = upperThreshold;
                 if (float.TryParse(config.GetValue("upperMachThreshold"), out upperMachThreshold))
                     upperThreshold = upperMachThreshold;
             }
             if (config.HasValue("maxDistortion"))
             {
-                Debug.Log("ASE -- Found maxDistortion");
                 float maxDist = maxDistortion;
                 if (float.TryParse(config.GetValue("maxDistortion"), out maxDist))
                     maxDistortion = maxDist;
             }
             if (config.HasValue("condensationEffectStrength"))
             {
-                Debug.Log("ASE -- Found condensationEffectStrength");
                 float condStrength = condensationEffectStrength;
                 if (float.TryParse(config.GetValue("condensationEffectStrength"), out condStrength))
                     condensationEffectStrength = condStrength;
             }
             if (config.HasValue("maxVacuumFreq"))
             {
-                Debug.Log("ASE -- Found maxVacuumFreq");
                 float vaccFreq = maxVacuumFreq;
                 if (float.TryParse(config.GetValue("maxVacuumFreq"), out vaccFreq))
                     maxVacuumFreq = vaccFreq;
             }
             if (config.HasValue("maxSupersonicFreq"))
             {
-                Debug.Log("ASE -- Found maxSupersonicFreq");
                 float superFreq = maxSupersonicFreq;
                 if (float.TryParse(config.GetValue("maxSupersonicFreq"), out superFreq))
                     maxSupersonicFreq = superFreq;
@@ -441,7 +433,7 @@ namespace ASE
         {
             currentState = Soundscape.NormalFlight;
             if (currentState != lastState)
-                Debug.Log("ASE -- Switching to Normal Atm Flight");
+                Debug.Log("ASE -- Switching to Normal Atmospheric Flight");
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, maxShipVolume);
@@ -492,7 +484,7 @@ namespace ASE
                     audioPanels.Add(new ASEFilterPanel(aeroFX.airspeedNoise.gameObject, aeroFX.airspeedNoise));
                 }
 
-                //add relevant filters
+                // Add relevant filters
                 foreach (ASEFilterPanel aPanel in audioPanels)
                     aPanel.AddKnobs(Knobs.distortion | Knobs.lowpass | Knobs.reverb);
                 lastVesselPartCount = FlightGlobals.ActiveVessel.parts.Count;
@@ -516,6 +508,8 @@ namespace ASE
                 GetAeroFX();
             if (aeroFX != null)
             {
+                float surfaceVelocity = FlightGlobals.ActiveVessel.GetSrfVelocity().magnitude;
+
                 if (machNumber < lowerThreshold)
                 {
                     // Subsonic.
@@ -528,29 +522,26 @@ namespace ASE
                     aeroFX.fudge1 = 3 + (1 - Mathf.Abs((machNumber - 1) / (1 - lowerThreshold))) * condensationEffectStrength;
                     aeroFX.state = 0; // Condensation.
                 }
-                else if (machNumber > upperThreshold && machNumber < 3)
+                else if (machNumber > upperThreshold && surfaceVelocity < DRStartThermal)
                 {
-                    // Supersonic.
+                    // Supersonic to hypersonic.
                     aeroFX.fudge1 = 0;
                     aeroFX.state = 0;
                 }
-                else if (aeroFX.velocity.magnitude < DRStartThermal) // approximate speed where shockwaves begin visibly glowing
+                else if (surfaceVelocity >= DRStartThermal && surfaceVelocity < DRFullThermal)
                 {
-                    aeroFX.fudge1 = 0;
-                    aeroFX.state = 0;
+                    aeroFX.state = (surfaceVelocity - DRStartThermal) / (DRFullThermal - DRStartThermal);
+                    aeroFX.fudge1 = 3;
                 }
-                else if (aeroFX.velocity.magnitude >= DRFullThermal)
+                else if (surfaceVelocity >= DRFullThermal)
                 {
+                    // Full re-entry speeds.
                     aeroFX.fudge1 = 3;
                     aeroFX.state = 1;
                 }
-                else
-                {
-                    aeroFX.state = (aeroFX.velocity.magnitude - DRStartThermal) / (DRFullThermal - DRStartThermal);
-                    aeroFX.fudge1 = 3;
-                }
+                //else
+                    //Debug.Log("ASE -- AeroFX: Invalid state!");
             }
-            //Debug.Log("#FX After: " + aeroFX.fudge1 + " " + aeroFX.state);
         }
         #endregion Graphical effects
     }//end class

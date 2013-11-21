@@ -7,8 +7,9 @@ using UnityEngine;
 
 namespace ASE
 {
-    /* Control knobs for adjusting filters.
-     */
+    /// <summary>
+    /// Control knobs for adjusting filters.
+    /// </summary>
     [FlagsAttribute]
     public enum Knobs
     {
@@ -24,9 +25,10 @@ namespace ASE
         all = volume | reverb | distortion | lowpass
     }
 
-    /* ASEFilterPanel to cache and manipulate filter components on AudioSource.
-     * NOT suitable for live spacesynth jam sessions.
-     */
+    /// <summary>
+    /// ASEFilterPanel to cache and manipulate filter components on AudioSource.
+    /// NOT suitable for live spacesynth jam sessions.
+    /// </summary>
     public class ASEFilterPanel
     {
         public GameObject gameObj;
@@ -35,22 +37,18 @@ namespace ASE
         public AudioDistortionFilter distortion;
         public AudioLowPassFilter lowpass;
 
-        /* @param Part aPart Provide reference.
-         * @param AudioSource aSource audio input.
-         */
         public ASEFilterPanel(GameObject gObj, AudioSource aSource)
         {
             gameObj = gObj;
             input = aSource;
         }
 
-        /* Add effects knobs to panel.  Attempts to recycle existing filters.
-         *
-         * @param Knobs Select multiple knobs via logical OR.
-         *   e.g. Knobs.distortion | Knobs.reverb
-         *
-         * @notes TODO Figure out a way to make filters chain (lowpass LAST)
-         */
+        /// <summary>
+        /// Add effects knobs to panel.  Attempts to recycle existing filters.
+        /// </summary>
+        /// <param name="select">Select multiple knobs via logical OR.
+        /// e.g. Knobs.distortion | Knobs.reverb</param>
+        /// <remarks>TODO Figure out a way to make filters chain (lowpass LAST).</remarks>
         public void AddKnobs(Knobs select)
         {
             if ((select & Knobs.distortion) == Knobs.distortion)
@@ -83,15 +81,13 @@ namespace ASE
             }
         }
 
-
-        /* Adjust effects knobs
-         *
-         * @param Knobs select multiple knobs via logical OR.
-         *   e.g. Knobs.distortion | Knobs.reverb
-         * @param float setting -1 to turn off.
-         *
-         * @notes TODO error checking on filter knobs
-         */
+        /// <summary>
+        /// Adjust effects knobs
+        /// </summary>
+        /// <param name="select">Select multiple knobs via logical OR.
+        /// e.g. Knobs.distortion | Knobs.reverb</param>
+        /// <param name="setting">-1 to turn off</param>
+        /// <remarks>TODO error checking on filter knobs.</remarks>
         public void SetKnobs(Knobs select, float setting)
         {
             if ((select & Knobs.lowpass) == Knobs.lowpass)
