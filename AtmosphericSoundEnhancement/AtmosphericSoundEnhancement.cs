@@ -82,7 +82,7 @@ namespace ASE
             maxSupersonicFreq = 0; // 300
 
             LoadConfig();
-            
+
             // TODO:
             // Option for microphone fixed to craft.
             // Options for shockwave reverb/distortion levels.
@@ -138,18 +138,25 @@ namespace ASE
             if (currentState == Soundscape.Paused) return;
             UpdateAeroFX();
             UpdateAudioSources();
-            if (audioPanels.Count() == 0) return;//TODO weak, temporary
+            if (audioPanels.Count() == 0)
+            {
+                return;//TODO weak, temporary
+            }
 
             lastState = currentState;
             if (CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.Internal
                 || CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA
                 || CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.Map)
+            {
                 Interior();
+            }
             else
             {
                 density = (float)AtmoDataProvider.Get().GetDensity();
                 if (density <= 0)
+                {
                     Vacuum();
+                }
                 else
                 {
                     //volume = maxShipVolume;
@@ -188,13 +195,20 @@ namespace ASE
                         }
                     }
                     else
+                    {
                         NormalFlight();
+                    }
                 } //end dense atmospheric conditions
             }//end external view
         }// end OnUpdate
 
+        // By the second FixedUpdate, craft have been loaded. The first is fired before loading.
+        private int _fixedUpdateCount = 0;
         public void FixedUpdate()
         {
+            if (_fixedUpdateCount < 2)
+                _fixedUpdateCount++;
+
             UpdateAeroFX();
         }
 
@@ -207,7 +221,6 @@ namespace ASE
         public void SaveConfig()
         {
             Debug.Log("ASE -- Saving...");
-
             UpdateConfigValue("interiorVolumeScale", interiorVolumeScale);
             UpdateConfigValue("interiorMaxFreq", interiorMaxFreq);
             UpdateConfigValue("lowerMachThreshold", lowerThreshold);
@@ -236,61 +249,68 @@ namespace ASE
 
         public void LoadConfig()
         {
-            Debug.Log("ASE -- Loading...");
-            config = ConfigNode.Load(configSavePath);
-            if (config == null)
+            //Debug.Log("ASE -- Loading...");
+            try
             {
-                Debug.Log("ASE -- No config file present.");
-                return;
-            }
+                config = ConfigNode.Load(configSavePath);
+                if (config == null)
+                {
+                    Debug.LogWarning("ASE -- No config file present.");
+                    return;
+                }
 
-            if (config.HasValue("interiorVolumeScale"))
-            {
-                float interiorVol = interiorVolumeScale;
-                if (float.TryParse(config.GetValue("interiorVolumeScale"), out interiorVol))
-                    interiorVolumeScale = interiorVol;
+                if (config.HasValue("interiorVolumeScale"))
+                {
+                    float interiorVol = interiorVolumeScale;
+                    if (float.TryParse(config.GetValue("interiorVolumeScale"), out interiorVol))
+                        interiorVolumeScale = interiorVol;
+                }
+                if (config.HasValue("interiorMaxFreq"))
+                {
+                    float interiorFreq = interiorMaxFreq;
+                    if (float.TryParse(config.GetValue("interiorMaxFreq"), out interiorFreq))
+                        interiorMaxFreq = interiorFreq;
+                }
+                if (config.HasValue("lowerMachThreshold"))
+                {
+                    float lowerMachThreshold = lowerThreshold;
+                    if (float.TryParse(config.GetValue("lowerMachThreshold"), out lowerMachThreshold))
+                        lowerThreshold = lowerMachThreshold;
+                }
+                if (config.HasValue("upperMachThreshold"))
+                {
+                    float upperMachThreshold = upperThreshold;
+                    if (float.TryParse(config.GetValue("upperMachThreshold"), out upperMachThreshold))
+                        upperThreshold = upperMachThreshold;
+                }
+                if (config.HasValue("maxDistortion"))
+                {
+                    float maxDist = maxDistortion;
+                    if (float.TryParse(config.GetValue("maxDistortion"), out maxDist))
+                        maxDistortion = maxDist;
+                }
+                if (config.HasValue("condensationEffectStrength"))
+                {
+                    float condStrength = condensationEffectStrength;
+                    if (float.TryParse(config.GetValue("condensationEffectStrength"), out condStrength))
+                        condensationEffectStrength = condStrength;
+                }
+                if (config.HasValue("maxVacuumFreq"))
+                {
+                    float vaccFreq = maxVacuumFreq;
+                    if (float.TryParse(config.GetValue("maxVacuumFreq"), out vaccFreq))
+                        maxVacuumFreq = vaccFreq;
+                }
+                if (config.HasValue("maxSupersonicFreq"))
+                {
+                    float superFreq = maxSupersonicFreq;
+                    if (float.TryParse(config.GetValue("maxSupersonicFreq"), out superFreq))
+                        maxSupersonicFreq = superFreq;
+                }
             }
-            if (config.HasValue("interiorMaxFreq"))
+            catch (Exception ex)
             {
-                float interiorFreq = interiorMaxFreq;
-                if (float.TryParse(config.GetValue("interiorMaxFreq"), out interiorFreq))
-                    interiorMaxFreq = interiorFreq;
-            }
-            if (config.HasValue("lowerMachThreshold"))
-            {
-                float lowerMachThreshold = lowerThreshold;
-                if (float.TryParse(config.GetValue("lowerMachThreshold"), out lowerMachThreshold))
-                    lowerThreshold = lowerMachThreshold;
-            }
-            if (config.HasValue("upperMachThreshold"))
-            {
-                float upperMachThreshold = upperThreshold;
-                if (float.TryParse(config.GetValue("upperMachThreshold"), out upperMachThreshold))
-                    upperThreshold = upperMachThreshold;
-            }
-            if (config.HasValue("maxDistortion"))
-            {
-                float maxDist = maxDistortion;
-                if (float.TryParse(config.GetValue("maxDistortion"), out maxDist))
-                    maxDistortion = maxDist;
-            }
-            if (config.HasValue("condensationEffectStrength"))
-            {
-                float condStrength = condensationEffectStrength;
-                if (float.TryParse(config.GetValue("condensationEffectStrength"), out condStrength))
-                    condensationEffectStrength = condStrength;
-            }
-            if (config.HasValue("maxVacuumFreq"))
-            {
-                float vaccFreq = maxVacuumFreq;
-                if (float.TryParse(config.GetValue("maxVacuumFreq"), out vaccFreq))
-                    maxVacuumFreq = vaccFreq;
-            }
-            if (config.HasValue("maxSupersonicFreq"))
-            {
-                float superFreq = maxSupersonicFreq;
-                if (float.TryParse(config.GetValue("maxSupersonicFreq"), out superFreq))
-                    maxSupersonicFreq = superFreq;
+                Debug.LogError("ASE -- Load error: " + ex.Message);
             }
         }
         #endregion Persistence
@@ -315,25 +335,25 @@ namespace ASE
 
         private void Vacuum()
         {
-            if (maxVacuumFreq < MinLowPassFreq)
+            currentState = Soundscape.Vacuum;
+            if (currentState != lastState)
             {
-                // Vacuum is set to silent.
-                currentState = Soundscape.Vacuum;
-                if (currentState != lastState)
+                Debug.Log("ASE -- Switching to Vacuum");
+                if (maxVacuumFreq < MinLowPassFreq)
                 {
-                    Debug.Log("ASE -- Switching to Vacuum");
+                    // Vacuum is set to silent.
                     foreach (ASEFilterPanel aPanel in audioPanels)
                         aPanel.SetKnobs(Knobs.volume | Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);
                 }
-            }
-            else
-            {
-                // Vacuum is set to quiet.
-                foreach (ASEFilterPanel aPanel in audioPanels)
+                else
                 {
-                    aPanel.SetKnobs(Knobs.lowpass, maxVacuumFreq);
-                    aPanel.SetKnobs(Knobs.volume, maxShipVolume);
-                    aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1);
+                    // Vacuum is set to quiet.
+                    foreach (ASEFilterPanel aPanel in audioPanels)
+                    {
+                        aPanel.SetKnobs(Knobs.lowpass, maxVacuumFreq);
+                        aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                        aPanel.SetKnobs(Knobs.distortion | Knobs.reverb, -1);
+                    }
                 }
             }
         }
@@ -344,6 +364,8 @@ namespace ASE
         private void BeforeShockwave()
         {
             currentState = Soundscape.BeforeShockwave;
+            if (currentState != lastState)
+                Debug.Log("ASE -- Switching to Before Shock");
             if (maxSupersonicFreq < MinLowPassFreq)
             {
                 // Silent ahead of the shockwave.
@@ -352,7 +374,6 @@ namespace ASE
                     aPanel.SetKnobs(Knobs.volume, volume);
                 if (currentState != lastState)
                 {
-                    Debug.Log("ASE -- Switching to Before Shock");
                     foreach (ASEFilterPanel aPanel in audioPanels)
                         aPanel.SetKnobs(Knobs.lowpass | Knobs.reverb | Knobs.distortion, -1);//effects off
                 }
@@ -362,8 +383,12 @@ namespace ASE
                 // Low frequency ahead of the shockwave.
                 foreach (ASEFilterPanel aPanel in audioPanels)
                 {
-                    aPanel.SetKnobs(Knobs.reverb | Knobs.distortion, -1);
-                    aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                    if (currentState != lastState)
+                    {
+                        aPanel.SetKnobs(Knobs.reverb | Knobs.distortion, -1);
+                        aPanel.SetKnobs(Knobs.volume, maxShipVolume);
+                    }
+
                     float supersonicFreq = Mathf.Lerp(maxSupersonicFreq, MaxLowPassFreq, 1f - shockwaveEffectStrength);
                     float atmoFreq = GetAtmosphericAttenuation();
                     if (atmoFreq > 0)
@@ -382,10 +407,10 @@ namespace ASE
         private void PositiveSlope(float positiveSlopeEdgeDeg, float positiveSlopeWidthDeg)
         {
             currentState = Soundscape.PositiveSlope;
-            float volume = Mathf.Lerp((1f - shockwaveEffectStrength), 1f, (positiveSlopeEdgeDeg - cameraAngle) / positiveSlopeWidthDeg);
             if (currentState != lastState)
                 Debug.Log("ASE -- Switching to Rising Edge");
-            float dynEffect = (positiveSlopeEdgeDeg - cameraAngle) / positiveSlopeWidthDeg * shockwaveEffectStrength * maxDistortion ;
+            float volume = Mathf.Lerp((1f - shockwaveEffectStrength), 1f, (positiveSlopeEdgeDeg - cameraAngle) / positiveSlopeWidthDeg);
+            float dynEffect = (positiveSlopeEdgeDeg - cameraAngle) / positiveSlopeWidthDeg * shockwaveEffectStrength * maxDistortion;
             foreach (ASEFilterPanel aPanel in audioPanels)
             {
                 aPanel.SetKnobs(Knobs.volume, volume);
@@ -464,30 +489,38 @@ namespace ASE
         {
             //TODO make conditional on GameEvent hooks if available
             //null reference paring.
+            int apc = audioPanels.Count;
             audioPanels.RemoveAll(item => item.input == null);
-            //TODO skip if in space (flatten state hierarchy slightly)
-            if (FlightGlobals.ActiveVessel.parts.Count != lastVesselPartCount || audioPanels.Count() < 1)
+            /*if (apc != audioPanels.Count)
+                Debug.Log("ASE -- removed " + (apc - audioPanels.Count) + " panels.");*/
+
+            // Wait until all craft have been loaded. The first fixed update is fired before this.
+            if (_fixedUpdateCount >= 2)
             {
-                audioPanels.Clear();
-                AudioSource[] audioSources = FindObjectsOfType(typeof(AudioSource)) as AudioSource[];
-                foreach (AudioSource s in audioSources)
+                //TODO skip if in space (flatten state hierarchy slightly)
+                if (FlightGlobals.ActiveVessel.parts.Count != lastVesselPartCount || audioPanels.Count() < 1)
                 {
-                    if (s.gameObject.GetComponent<Part>() != null && s.clip != null)
+                    audioPanels.Clear();
+                    AudioSource[] audioSources = FindObjectsOfType(typeof(AudioSource)) as AudioSource[];
+                    foreach (AudioSource s in audioSources)
                     {
-                        Debug.Log("ASE -- Found AudioSource on Part: " + s.gameObject.GetComponent<Part>());
-                        audioPanels.Add(new ASEFilterPanel(s.gameObject, s));
+                        if (s.gameObject.GetComponent<Part>() != null && s.clip != null)
+                        {
+                            //Debug.Log("ASE -- Found AudioSource on Part: " + s.gameObject.GetComponent<Part>());
+                            audioPanels.Add(new ASEFilterPanel(s.gameObject, s));
+                        }
                     }
-                }
 
-                if (aeroFX != null)
-                {
-                    audioPanels.Add(new ASEFilterPanel(aeroFX.airspeedNoise.gameObject, aeroFX.airspeedNoise));
-                }
+                    if (aeroFX != null)
+                    {
+                        audioPanels.Add(new ASEFilterPanel(aeroFX.airspeedNoise.gameObject, aeroFX.airspeedNoise));
+                    }
 
-                // Add relevant filters
-                foreach (ASEFilterPanel aPanel in audioPanels)
-                    aPanel.AddKnobs(Knobs.distortion | Knobs.lowpass | Knobs.reverb);
-                lastVesselPartCount = FlightGlobals.ActiveVessel.parts.Count;
+                    // Add relevant filters.
+                    foreach (ASEFilterPanel aPanel in audioPanels)
+                        aPanel.AddKnobs(Knobs.distortion | Knobs.lowpass | Knobs.reverb);
+                    lastVesselPartCount = FlightGlobals.ActiveVessel.parts.Count;
+                }
             }
         }
         #endregion Audio updates
