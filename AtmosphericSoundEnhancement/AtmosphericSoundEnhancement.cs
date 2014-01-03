@@ -25,8 +25,20 @@ namespace ASE
         private const float MinLowPassFreq = 10; // Hz
         private const float MaxLowPassFreq = 22000; // Hz
 
-        ConfigNode config;
-        string configSavePath = "GameData/AtmosphericSoundEnhancement/settings.cfg";
+		private PluginConfiguration _config;
+		private PluginConfiguration config
+		{
+			get
+			{
+				if (this._config == null)
+				{
+					this._config = PluginConfiguration.CreateForType<AtmosphericSoundEnhancement>(null);
+					this._config.load();
+				}
+
+				return this._config;
+			}
+		}
 
         // Remote Tech
         // Block communications when plasma is active.
@@ -221,97 +233,34 @@ namespace ASE
         public void SaveConfig()
         {
             Debug.Log("ASE -- Saving...");
-            UpdateConfigValue("interiorVolumeScale", interiorVolumeScale);
-            UpdateConfigValue("interiorMaxFreq", interiorMaxFreq);
-            UpdateConfigValue("lowerMachThreshold", lowerThreshold);
-            UpdateConfigValue("upperMachThreshold", upperThreshold);
-            UpdateConfigValue("maxDistortion", maxDistortion);
-            UpdateConfigValue("condensationEffectStrength", condensationEffectStrength);
-            UpdateConfigValue("maxVacuumFreq", maxVacuumFreq);
-            UpdateConfigValue("maxSupersonicFreq", maxSupersonicFreq);
+			config.SetValue("interiorVolumeScale", interiorVolumeScale);
+			config.SetValue("interiorMaxFreq", interiorMaxFreq);
+			config.SetValue("lowerMachThreshold", lowerThreshold);
+			config.SetValue("upperMachThreshold", upperThreshold);
+			config.SetValue("maxDistortion", maxDistortion);
+			config.SetValue("condensationEffectStrength", condensationEffectStrength);
+			config.SetValue("maxVacuumFreq", maxVacuumFreq);
+			config.SetValue("maxSupersonicFreq", maxSupersonicFreq);
 
-            config.Save(configSavePath);
-        }
-
-        private void UpdateConfigValue(string name, object value)
-        {
-            if (config == null)
-            {
-                config = ConfigNode.Load(configSavePath);
-                if (config == null)
-                    config = new ConfigNode();
-            }
-
-            if (config.HasValue(name))
-                config.RemoveValue(name);
-            config.AddValue(name, value);
+			config.save();
+			Debug.Log("ASE -- Saved...");
         }
 
         public void LoadConfig()
         {
             //Debug.Log("ASE -- Loading...");
-            try
-            {
-                config = ConfigNode.Load(configSavePath);
-                if (config == null)
-                {
-                    Debug.LogWarning("ASE -- No config file present.");
-                    return;
-                }
-
-                if (config.HasValue("interiorVolumeScale"))
-                {
-                    float interiorVol = interiorVolumeScale;
-                    if (float.TryParse(config.GetValue("interiorVolumeScale"), out interiorVol))
-                        interiorVolumeScale = interiorVol;
-                }
-                if (config.HasValue("interiorMaxFreq"))
-                {
-                    float interiorFreq = interiorMaxFreq;
-                    if (float.TryParse(config.GetValue("interiorMaxFreq"), out interiorFreq))
-                        interiorMaxFreq = interiorFreq;
-                }
-                if (config.HasValue("lowerMachThreshold"))
-                {
-                    float lowerMachThreshold = lowerThreshold;
-                    if (float.TryParse(config.GetValue("lowerMachThreshold"), out lowerMachThreshold))
-                        lowerThreshold = lowerMachThreshold;
-                }
-                if (config.HasValue("upperMachThreshold"))
-                {
-                    float upperMachThreshold = upperThreshold;
-                    if (float.TryParse(config.GetValue("upperMachThreshold"), out upperMachThreshold))
-                        upperThreshold = upperMachThreshold;
-                }
-                if (config.HasValue("maxDistortion"))
-                {
-                    float maxDist = maxDistortion;
-                    if (float.TryParse(config.GetValue("maxDistortion"), out maxDist))
-                        maxDistortion = maxDist;
-                }
-                if (config.HasValue("condensationEffectStrength"))
-                {
-                    float condStrength = condensationEffectStrength;
-                    if (float.TryParse(config.GetValue("condensationEffectStrength"), out condStrength))
-                        condensationEffectStrength = condStrength;
-                }
-                if (config.HasValue("maxVacuumFreq"))
-                {
-                    float vaccFreq = maxVacuumFreq;
-                    if (float.TryParse(config.GetValue("maxVacuumFreq"), out vaccFreq))
-                        maxVacuumFreq = vaccFreq;
-                }
-                if (config.HasValue("maxSupersonicFreq"))
-                {
-                    float superFreq = maxSupersonicFreq;
-                    if (float.TryParse(config.GetValue("maxSupersonicFreq"), out superFreq))
-                        maxSupersonicFreq = superFreq;
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError("ASE -- Load error: " + ex.Message);
-            }
+			this.interiorVolumeScale = config.GetValue<float>("interiorVolumeScale", this.interiorVolumeScale);
+			this.interiorMaxFreq = config.GetValue<float>("interiorMaxFreq", this.interiorMaxFreq);
+			this.lowerThreshold = config.GetValue<float>("lowerMachThreshold", this.lowerThreshold);
+			this.upperThreshold = config.GetValue<float>("upperMachThreshold", this.upperThreshold);
+			this.maxDistortion = config.GetValue<float>("maxDistortion", this.maxDistortion);
+			this.condensationEffectStrength = config.GetValue<float>(
+				"condensationEffectStrength",
+				this.condensationEffectStrength
+			);
+			this.maxVacuumFreq = config.GetValue<float>("maxVacuumFreq", this.maxVacuumFreq);
+			this.maxSupersonicFreq = config.GetValue<float>("maxSupersonicFreq", this.maxSupersonicFreq);
+			//Debug.Log("ASE -- Loaded...");
         }
         #endregion Persistence
 
